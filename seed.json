@@ -1,0 +1,112 @@
+{
+  "hospitals": [
+    {
+      "name": "Hospital Geral do Estado",
+      "address": "Av. Siqueira Campos, Trapiche da Barra — Maceió/AL",
+      "distance": 3.2,
+      "time": 8,
+      "status": "Aberto",
+      "type": "Emergência 24h",
+      "lat": -9.6747,
+      "lon": -35.7508
+    },
+    {
+      "name": "Hospital Veredas",
+      "address": "Av. Fernandes Lima, Farol — Maceió/AL",
+      "distance": 5.6,
+      "time": 12,
+      "status": "Aberto",
+      "type": "Atendimento hospitalar",
+      "lat": -9.6428,
+      "lon": -35.7355
+    },
+    {
+      "name": "Santa Casa de Maceió",
+      "address": "Centro — Maceió/AL",
+      "distance": 7.8,
+      "time": 16,
+      "status": "Aberto",
+      "type": "Pronto atendimento",
+      "lat": -9.6653,
+      "lon": -35.7352
+    },
+    {
+      "name": "Hospital Sanatório",
+      "address": "Farol — Maceió/AL",
+      "distance": 9.4,
+      "time": 20,
+      "status": "Aberto",
+      "type": "Atendimento hospitalar",
+      "lat": -9.651,
+      "lon": -35.733
+    },
+    {
+      "name": "Hospital da Mulher",
+      "address": "Tabuleiro do Martins — Maceió/AL",
+      "distance": 11.2,
+      "time": 24,
+      "status": "Aberto",
+      "type": "Especialidades",
+      "lat": -9.563,
+      "lon": -35.78
+    }
+  ],
+  "roads": [
+    {
+      "id": "RUA_001",
+      "name": "Av. Fernandes Lima",
+      "direction": "Mão única",
+      "status": "Liberada",
+      "cost": 8
+    },
+    {
+      "id": "RUA_002",
+      "name": "Av. Comendador Leão",
+      "direction": "Mão única",
+      "status": "Bloqueada",
+      "cost": 5
+    },
+    {
+      "id": "RUA_003",
+      "name": "Rua Pedro Paulino",
+      "direction": "Dupla",
+      "status": "Liberada",
+      "cost": 4
+    },
+    {
+      "id": "RUA_004",
+      "name": "Av. da Paz",
+      "direction": "Dupla",
+      "status": "Liberada",
+      "cost": 6
+    },
+    {
+      "id": "RUA_005",
+      "name": "Rua Jangadeiros",
+      "direction": "Mão única",
+      "status": "Liberada",
+      "cost": 3
+    },
+    {
+      "id": "RUA_006",
+      "name": "Av. Rotary",
+      "direction": "Dupla",
+      "status": "Liberada",
+      "cost": 7
+    },
+    {
+      "id": "RUA_007",
+      "name": "Rua Dr. Antônio C.",
+      "direction": "Mão única",
+      "status": "Liberada",
+      "cost": 5
+    },
+    {
+      "id": "RUA_008",
+      "name": "Av. Silvio Carlos",
+      "direction": "Dupla",
+      "status": "Liberada",
+      "cost": 6
+    }
+  ]
+}

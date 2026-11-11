@@ -1,0 +1,3 @@
+import {readdirSync,readFileSync,writeFileSync} from 'node:fs';
+const assets=readdirSync('dist/assets').filter(x=>!x.endsWith('.map')).map(x=>'/assets/'+x);
+let sw=readFileSync('dist/sw.js','utf8');sw=sw.replace("['/','/icon.svg']",JSON.stringify(['/','/icon.svg',...assets]));sw=sw.replace("if(event.request.mode==='navigate')", "if(new URL(event.request.url).origin===self.location.origin && new URL(event.request.url).pathname.startsWith('/assets/')){event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request)));return;}if(event.request.mode==='navigate')");writeFileSync('dist/sw.js',sw);
