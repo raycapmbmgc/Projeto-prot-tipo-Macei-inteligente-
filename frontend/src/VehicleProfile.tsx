@@ -1,0 +1,7 @@
+export type VehicleProfile='standard'|'authorized'|'ambulance';
+export const vehicleLabels:Record<VehicleProfile,string>={standard:'Veículo comum',authorized:'Veículo autorizado',ambulance:'Ambulância'};
+
+export function VehicleProfileField({profile,declared,onProfile,onDeclared}:{profile:VehicleProfile;declared:boolean;onProfile:(p:VehicleProfile)=>void;onDeclared:(v:boolean)=>void}){
+  const descriptions:Record<VehicleProfile,string>={standard:'Carro particular, táxi ou transporte por aplicativo.',authorized:'Veículo de uma operação ou serviço com autorização própria.',ambulance:'Ambulância utilizada por equipe ou serviço de saúde.'};
+  return <fieldset className="vehicle-profile"><legend>Perfil do veículo</legend><label htmlFor="vehicle-profile">Qual veículo fará o trajeto?</label><select id="vehicle-profile" value={profile} onChange={e=>onProfile(e.target.value as VehicleProfile)}>{Object.entries(vehicleLabels).map(([id,label])=><option key={id} value={id}>{label}</option>)}</select><p className="hint">{descriptions[profile]}</p>{profile!=='standard'&&<><label className="check"><input type="checkbox" checked={declared} onChange={e=>onDeclared(e.target.checked)}/> Declaro que este é o perfil correto do veículo para esta operação.</label><p className="hint">O perfil é declarado pelo usuário. O sistema mantém as permissões normais das vias e não concede prioridade ou autorização de circulação.</p></>}</fieldset>;
+}

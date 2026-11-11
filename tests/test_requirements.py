@@ -42,7 +42,7 @@ def test_accessibility_requires_a_record_and_admin_access():
 
 def test_community_reports_need_consent_and_review_before_affecting_routes():
     body = {'description':'Via bloqueada em teste', 'kind':'blockage','location':{'lat':-9.66,'lon':-35.72}}
-    raw = {'trip':{'summary':{'length':1,'time':60},'legs':[{'shape':{'coordinates':[[-35.7,-9.6],[-35.71,-9.61]]},'maneuvers':[]}]}}
+    raw = {'trip':{'summary':{'length':1,'time':60},'legs':[{'shape':{'type':'LineString','coordinates':[[-35.7,-9.6],[-35.71,-9.61]]},'maneuvers':[]}]}}
     response = httpx.Response(200,json=raw,request=httpx.Request('POST','https://example.test/route'))
     with TestClient(app) as client, patch.dict(os.environ, {'ADMIN_TOKEN':'review-test','VALHALLA_URL':'https://example.test'}):
         assert client.post('/api/reports',json=body).status_code == 422
@@ -59,7 +59,7 @@ def test_community_reports_need_consent_and_review_before_affecting_routes():
 
 
 def test_multiple_stops_and_wheelchair_preferences_reach_the_provider():
-    raw = {'trip':{'summary':{'length':1,'time':60},'legs':[{'shape':{'coordinates':[[-35.7,-9.6],[-35.71,-9.61]]},'maneuvers':[]}]}}
+    raw = {'trip':{'summary':{'length':1,'time':60},'legs':[{'shape':{'type':'LineString','coordinates':[[-35.7,-9.6],[-35.71,-9.61]]},'maneuvers':[]}]}}
     response = httpx.Response(200,json=raw,request=httpx.Request('POST','https://example.test/route'))
     body = RouteRequest(origin={'lat':-9.6,'lon':-35.7},destination={'lat':-9.61,'lon':-35.71},waypoints=[{'lat':-9.605,'lon':-35.705}],mode='wheelchair',avoid_steps=True,prefer_lit=True,avoid_hills=True)
     with patch.dict(os.environ,{'VALHALLA_URL':'https://example.test'}), patch('httpx.AsyncClient.post',new=AsyncMock(return_value=response)) as post:

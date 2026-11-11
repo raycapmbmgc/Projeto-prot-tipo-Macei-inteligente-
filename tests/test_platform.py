@@ -35,9 +35,13 @@ def test_admin():
   assert c.post('/api/roads',json={'name':'New'}).status_code==401
   assert c.post('/api/roads',json={'name':'New'},headers={'Authorization':'Bearer test-secret'}).status_code==201
 
-def test_assistant_unconfigured():
+def test_assistant_uses_local_planner_without_external_model():
  with TestClient(app) as c,patch.dict(os.environ,{'OLLAMA_URL':'','OLLAMA_MODEL':''}):
-  assert c.post('/api/assistant',json={'message':'Como chegar na praia?'}).status_code==503
+  response=c.post('/api/assistant',json={'message':'Quero ir ao HGE de ambulância'})
+  assert response.status_code==200
+  assert response.json()['provider']=='local'
+  assert response.json()['vehicle_profile']=='ambulance'
+  assert response.json()['destination_query']
 
 def test_osrm_normalization():
  import asyncio

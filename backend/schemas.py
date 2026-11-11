@@ -10,12 +10,16 @@ class RouteRequest(BaseModel):
  destination: Point
  mode: Literal["car","walk","bike","wheelchair"]="car"
  objective: Literal["fastest","shortest"]="fastest"
+ vehicle_profile: Literal['standard','authorized','ambulance']='standard'
+ authorization_declared: bool=False
  waypoints: list[Point]=Field(default_factory=list,max_length=5)
  avoid_steps: bool=False
  prefer_lit: bool=False
  avoid_hills: bool=False
  @model_validator(mode='after')
  def validate_preferences(self):
+  if self.vehicle_profile!='standard' and self.mode!='car': raise ValueError('O perfil de veículo exige deslocamento de carro.')
+  if self.vehicle_profile!='standard' and not self.authorization_declared: raise ValueError('Confirme a declaração do perfil do veículo.')
   if self.mode not in ('walk','wheelchair') and (self.avoid_steps or self.prefer_lit or self.avoid_hills):
    raise ValueError('Preferências de caminhada exigem modo a pé ou cadeira de rodas.')
   return self
@@ -76,3 +80,5 @@ class AssistantReply(BaseModel):
  answer: str=Field(max_length=2000)
  destination_query: str | None=None
  mode: Literal["car","walk","bike","wheelchair"] | None=None
+ vehicle_profile: Literal['standard','authorized','ambulance'] | None=None
+ provider: Literal['local','ollama']='local'

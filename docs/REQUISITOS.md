@@ -7,13 +7,13 @@ Referência: ERS versão 1.0, de 04/11/2026, fornecida pela equipe. O produto pr
 | RF01 Mapa interativo | Mapa de Maceió com hospitais, percurso, origem, paradas e ocorrências | WebGL e conexão para os mapas OSM |
 | RF02 Permissão de localização | Botão explícito; tratamento de recusa e origem manual | HTTPS ou localhost |
 | RF03 Posição atual | Marcador GPS e precisão em metros | Dispositivo com sinal; teste físico pendente |
-| RF04 Pesquisa | Filtro de hospitais e busca explícita de endereços | Geocodificador externo, com limite e cache |
+| RF04 Pesquisa | Catálogo CNES de hospitais, UPAs e particulares, com filtros de rede/tipo; busca explícita de endereços | Geocodificador externo, com limite e cache; atualidade limitada à fonte cadastral |
 | RF05 Cálculo de rotas | Origem, destino hospitalar e até cinco paradas | OSRM para carro; Valhalla para demais modos |
 | RF06 Desenho do percurso | Geometria real retornada pelo provedor | Não são desenhadas linhas ilustrativas como rotas reais |
 | RF07 Navegação guiada | Iniciar, pausar, encerrar e reconhecer chegada | Exige rota calculada e GPS ativo |
 | RF08 Atualizar posição | `watchPosition`, limitado a uma atualização a cada três segundos | Não persiste trilha GPS |
 | RF09 Recálculo após desvio | Projeção no trajeto; limiar de 60 m ou 2× precisão; intervalo mínimo de 30 s | Precisa de rede; conserva as paradas ainda não atingidas |
-| RF10 Modos | Carro, a pé, bicicleta e preferências para cadeira de rodas | A pé, bicicleta e cadeira de rodas dependem de Valhalla |
+| RF10 Modos | Carro, a pé, bicicleta e preferências para cadeira de rodas; perfis comum/autorizado/ambulância | Valhalla comunitário padrão ou instância própria. Perfil não altera permissões viárias |
 | RF11 Tempo e distância | Valores do provedor e comparação de alternativas | Tempos estimados, sem lentidão em tempo real |
 | RF12 Favoritos | Adicionar e remover hospitais/locais no navegador | Até 50; não exige conta e não sincroniza entre aparelhos |
 | RF13 Ocorrências | Envio com coordenadas e consentimento; não verificada até moderação | Publicação por até 24 h; só relatos validados de bloqueio/alagamento são enviados ao Valhalla |
@@ -23,7 +23,7 @@ Referência: ERS versão 1.0, de 04/11/2026, fornecida pela equipe. O produto pr
 | RF17 Múltiplas paradas | Até cinco pontos antes do hospital; reordenar e remover | O provedor define o caminho; não há otimização automática da ordem |
 | RF18 Voz | Instruções em pt-BR; opção de ativação e interrupção ao pausar/encerrar | API de voz do navegador; depende das vozes disponíveis |
 | RF19 Offline limitado | PWA, interface em cache e percurso salvo por ação explícita | Sem download de mapas, novos trajetos ou atualização de ocorrências offline |
-| RF20 Assistente | Interpretação da pesquisa e modo; não inicia navegação | Ollama e modelo configurados; sem GPS automático ou triagem médica |
+| RF20 Assistente | Reconhecimento local de unidade, modo e perfil; não inicia navegação | Funciona sem modelo externo; Ollama opcional. Sem GPS automático ou triagem médica |
 
 ## Regras de negócio
 
@@ -40,4 +40,4 @@ Os testes automatizados verificam persistência isolada, permissões, validaçã
 
 RNF01 (p95 ≤ 2 s) e RNF06 (99% mensal) são **metas**, não resultados comprovados. Devem ser medidos no ambiente implantado. HTTPS depende do proxy/hosting; conformidade LGPD exige definir controlador, política de privacidade, retenção e operação. Responsividade foi implementada; compatibilidade entre navegadores, GPS, voz, bússola e o fluxo de caminhada precisam de aceite em dispositivos reais.
 
-O aceite completo do MVP exige um Valhalla operacional com dados da região, teste real de caminhada e recálculo após desvio. Não basta compilar o frontend para declarar esse aceite concluído.
+O provedor comunitário foi consultado com sucesso para carro, caminhada e bicicleta. O aceite completo do MVP ainda exige teste físico de caminhada e recálculo após desvio, além de um provedor dimensionado para implantação. O catálogo de ônibus incluído não substitui um GTFS atualizado com itinerários e horários para planejamento interno completo.

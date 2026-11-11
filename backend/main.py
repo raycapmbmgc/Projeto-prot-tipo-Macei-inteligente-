@@ -16,6 +16,8 @@ from backend.database import Base,engine,Session,Place,Road,Report
 from backend.schemas import RouteRequest,RoadUpdate,RoadCreate,AssistantRequest,PlaceCreate,TransitRequest,ReportCreate,ReportReview
 from backend.geo import distance
 from backend import transit
+from backend import catalog,bus_catalog
+from backend.config import valhalla_url
 from backend.traffic import traffic
 from backend.assistant import interpret
 from backend.providers import search,calculate
@@ -35,6 +37,7 @@ async def lifespan(app):
   seed=json.loads((ROOT/'seed.json').read_text(encoding='utf8'))
   if db.scalar(select(Place.id).limit(1)) is None: db.add_all([Place(id=i+1,data=h,**({'location':f"SRID=4326;POINT({h['lon']} {h['lat']})"} if engine.dialect.name=='postgresql' else {})) for i,h in enumerate(seed['hospitals'])])
   if db.scalar(select(Road.id).limit(1)) is None: db.add_all([Road(id=r['id'],data=r) for r in seed['roads']])
+  catalog.sync(db)
   if engine.dialect.name=='postgresql':
    db.execute(text("SELECT setval(pg_get_serial_sequence('places','id'), COALESCE((SELECT MAX(id) FROM places),1), EXISTS(SELECT 1 FROM places))"))
  global redis_client
@@ -80,12 +83,32 @@ def health():
  return {'status':'ok','database':engine.dialect.name}
 @app.get('/api/capabilities')
 def capabilities():
- valhalla=bool(os.getenv('VALHALLA_URL'))
+ valhalla=bool(valhalla_url())
  return {'modes':['car','walk','bike','wheelchair'] if valhalla else ['car'],'objectives':['fastest','shortest'],
-         'transit':transit.status()['configured'],'accessibility':False,'accessibility_preferences':valhalla,
+         'transit':transit.status()['configured'],'bus_catalog':bus_catalog.status()['configured'],'accessibility':False,'accessibility_preferences':valhalla,
          'live_traffic':bool(os.getenv('TRAFFIC_FEED_URL') and os.getenv('TRAFFIC_FEED_SOURCE')),
          'closure_routing':valhalla,'admin_protected':bool(os.getenv('ADMIN_TOKEN')),
-         'assistant':bool(os.getenv('OLLAMA_URL') and os.getenv('OLLAMA_MODEL'))}
+         'assistant':True,'assistant_provider':'ollama' if os.getenv('OLLAMA_URL') and os.getenv('OLLAMA_MODEL') else 'local'}
+
+@app.get('/api/catalog/status')
+def catalog_status(): return {'healthcare':catalog.status(),'transport':bus_catalog.status()}
+
+@app.post('/api/admin/catalog/reload')
+def reload_catalog():
+ with Session.begin() as db: catalog.sync(db)
+ return catalog_status()
+
+@app.get('/api/transit/catalog/stops')
+def catalog_stops(lat:float=Query(ge=-90,le=90),lon:float=Query(ge=-180,le=180),radius:int=Query(default=800,ge=100,le=3000)):
+ return bus_catalog.nearby_stops(lat,lon,radius)
+
+@app.get('/api/transit/lines')
+def bus_lines(q:str=Query(default='',max_length=150),lat:float|None=Query(default=None,ge=-90,le=90),lon:float|None=Query(default=None,ge=-180,le=180),radius:int=Query(default=800,ge=100,le=3000)):
+ if (lat is None)!=(lon is None): raise HTTPException(422,'Informe latitude e longitude juntas.')
+ return bus_catalog.lines(q,lat,lon,radius)
+
+@app.get('/api/transit/lines/{line_id}')
+def bus_geometry(line_id:str): return bus_catalog.route(line_id)
 
 @app.post('/api/admin/session')
 def admin_session(): return {'authenticated':True,'local_only':not bool(os.getenv('ADMIN_TOKEN'))}
@@ -148,6 +171,7 @@ def nearby(lat:float=Query(ge=-90,le=90),lon:float=Query(ge=-180,le=180),radius:
    candidates=[dict(p.data,id=p.id) for p in db.scalars(select(Place))]
   result=[]
   for p in candidates:
+   if p.get('active') is False or not p.get('routable',True): continue
    if category and p.get('category','hospital')!=category: continue
    if wheelchair and (p.get('wheelchair')!='yes' or not p.get('verified_at')): continue
    d=distance(lat,lon,p['lat'],p['lon'])
@@ -177,7 +201,7 @@ def delete_place(place_id:int):
   db.delete(place)
 @app.get('/api/hospitals')
 def hospitals():
- with Session() as db: return [public_place(dict(p.data,id=p.id)) for p in db.scalars(select(Place).order_by(Place.id)) if p.data.get('category','hospital')=='hospital']
+ with Session() as db: return [public_place(dict(p.data,id=p.id)) for p in db.scalars(select(Place).order_by(Place.id)) if p.data.get('category','hospital')=='hospital' and p.data.get('active',True)]
 @app.get('/api/roads')
 def roads():
  with Session() as db: return [r.data for r in db.scalars(select(Road).order_by(Road.id))]

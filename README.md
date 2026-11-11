@@ -4,7 +4,16 @@ Plataforma de **rotas para hospitais de Maceió**, com o visual original: menu l
 
 A versão Flask (`app.py`, `index.html`, `instance/maceio.sqlite3`) continua disponível separadamente, com suas APIs originais. O banco antigo não é substituído nem apagado. Para os recursos novos, utilize `run.py` ou `iniciar.ps1`.
 
-Consulte a [matriz dos 20 requisitos da ERS](docs/REQUISITOS.md) e o [guia de operação e configuração](docs/OPERACAO.md). Caminhada, bicicleta, IA e dados externos exigem os serviços descritos nesses documentos; a compilação local não comprova o aceite completo do MVP.
+Consulte a [matriz dos 20 requisitos da ERS](docs/REQUISITOS.md) e o [guia de operação e configuração](docs/OPERACAO.md). O cadastro inclui uma carga real do CNES e da planilha municipal de transporte. Carro, caminhada e bicicleta usam por padrão um Valhalla comunitário; o assistente possui planejamento local sem exigir IA externa. O aceite de GPS e navegação em dispositivo físico continua necessário.
+
+## Dados incluídos
+
+- **50 unidades ativas retornadas pelo CNES** para os tipos hospitalares e de urgência de Maceió: 42 hospitais/hospitais-dia e 8 UPAs. Natureza jurídica informada: 18 públicas e 32 particulares/filantrópicas. A abrangência é a dos filtros e da atualização da fonte, não uma garantia de todas as unidades atualmente em funcionamento.
+- **87 códigos de linha e 1.317 terminais/pontos** da planilha oficial publicada pelo Observatório da Cidade. Essa planilha vincula linhas a terminais, mas não fornece todos os itinerários, horários ou veículos em tempo real.
+- A tela Ônibus pesquisa o catálogo e pontos próximos ao hospital. O planejamento completo de transporte público abre o Google Maps por ação explícita, compartilhando origem/destino com esse provedor. O planejador interno de horários continua disponível para importação de um GTFS oficial.
+- Os arquivos em `data/` registram origem e data de importação. A atualização cadastral de cada unidade aparece na interface. Coordenadas cadastrais não equivalem a uma verificação da entrada física do hospital.
+
+Para atualizar as fontes, execute `.venv\Scripts\python -m backend.catalog` e `.venv\Scripts\python -m backend.bus_catalog`. Depois reinicie o backend ou use “Recarregar catálogo importado” na administração. Uma falha de download não substitui a carga anterior por uma lista vazia.
 
 ## Executar a plataforma nova
 
@@ -24,11 +33,11 @@ Abra http://127.0.0.1:8000. Documentacao REST: /docs. Versao original: /legacy. 
 
 Para desenvolvimento, execute `npm.cmd run dev --prefix frontend` em outro terminal. Vite encaminha API e WebSocket para a porta 8000.
 
-Sem configuracao adicional, FastAPI cria SQLite em `instance/platform.sqlite3`, importa dados demonstrativos de seed.json e usa OSRM para carro. Isso e um modo local de desenvolvimento, nao uma validacao do ambiente PostGIS.
+Sem configuração adicional, FastAPI cria SQLite em `instance/platform.sqlite3`, importa o snapshot CNES incluído e usa `https://valhalla1.openstreetmap.de` para rotas. Os hospitais de demonstração intactos são substituídos pelo catálogo real; dados adicionados pelo usuário e o banco Flask são preservados. Vias demonstrativas permanecem identificadas pelo seu cadastro. Isso é um modo local de desenvolvimento, não uma validação do ambiente PostGIS.
 
 ## PostgreSQL/PostGIS e Redis
 
-Copie `.env.example` para `.env` se precisar configurar servicos opcionais. O backend carrega esse arquivo automaticamente; variaveis exportadas no terminal tem prioridade. Os valores vazios mantem SQLite e roteamento de carro, sem exigir Redis, Valhalla ou Ollama. Docker Compose tambem usa .env para interpolacao. Para PostgreSQL, preencha DATABASE_URL e POSTGRES_PASSWORD; para Redis, preencha REDIS_URL.
+Copie `.env.example` para `.env` se precisar configurar serviços opcionais. O backend carrega esse arquivo automaticamente; variáveis exportadas no terminal têm prioridade. DATABASE_URL vazio mantém SQLite. VALHALLA_URL ausente usa o servidor comunitário; explicitamente vazio desativa Valhalla e deixa somente carro por OSRM. Redis e Ollama são opcionais. Docker Compose também usa .env para interpolação. Para PostgreSQL, preencha DATABASE_URL e POSTGRES_PASSWORD; para Redis, preencha REDIS_URL.
 
 ```powershell
 $env:POSTGRES_PASSWORD='defina-uma-senha'
@@ -45,9 +54,11 @@ Nao foi feita importacao automatica das alteracoes do SQLite antigo. O arquivo o
 
 ## Caminhada, bicicleta e IA
 
-Configure `VALHALLA_URL` para um servidor Valhalla com malha OSM da regiao carregada, suporte GeoJSON e idioma pt-BR. O adapter recebe manobras, distancias e tempos reais do provedor; sem Valhalla, somente carro e habilitado. O repositorio nao inclui os grandes arquivos cartograficos nem um servidor Valhalla provisionado.
+`VALHALLA_URL` permite usar uma instância própria; o servidor comunitário padrão serve para demonstração e não oferece garantia de disponibilidade. O adapter aceita GeoJSON e polyline6, pois alguns servidores retornam geometria codificada mesmo quando GeoJSON é solicitado. O repositório não inclui grandes arquivos cartográficos nem provisiona um Valhalla próprio.
 
-Assistente: execute um servidor Ollama com um modelo instalado e exporte `OLLAMA_URL` e `OLLAMA_MODEL`. `POST /api/assistant` recebe `message`, retorna resposta validada por Pydantic e sugestoes de destino/modo. A sugestao preenche a busca, sem iniciar navegacao automaticamente. Sem modelo configurado retorna 503. Nenhuma chave de API fica no frontend. O GPS nao e enviado ao assistente.
+Assistente: `POST /api/assistant` funciona com regras locais para reconhecer unidades, modos e perfis de veículo. Ele identifica explicitamente esse modo como local, sem simular um modelo de IA. Opcionalmente configure `OLLAMA_URL` e `OLLAMA_MODEL`; falha do modelo retorna ao planejamento local. O assistente pode selecionar uma unidade e preencher preferências, mas não inicia navegação nem confirma a declaração de veículo autorizado automaticamente. O GPS não é enviado ao assistente.
+
+Perfis de carro: veículo comum, autorizado e ambulância. Os dois últimos exigem uma declaração explícita do usuário. O perfil não autentica um condutor nem altera as permissões viárias do cálculo.
 
 ## Implementado e limites
 
@@ -60,7 +71,7 @@ Assistente: execute um servidor Ollama com um modelo instalado e exporte `OLLAMA
 - Favoritos locais, até cinco paradas antes do hospital, consulta de percurso salvo e exportação GeoJSON.
 - Relatos comunitários com consentimento e estado não verificado; moderação e indicadores agregados em Configurações → Administração.
 - Cadastro de hospitais com fonte e registro datado de acessibilidade. Preferências de iluminação, menos ladeiras/escadas e cadeira de rodas dependem de Valhalla e do mapeamento; não garantem acessibilidade. Sombra permanece indisponível por falta de dados.
-- Importação opcional de GTFS para consultas de linhas diretas programadas e adapter de trânsito GeoJSON com fonte e validade. Nenhum feed real acompanha a instalação; lentidão não é incorporada ao cálculo de tempo.
+- Catálogo municipal de ônibus incluído e importação opcional de GTFS para consultas de linhas diretas programadas. A fonte oficial de itinerários/horários indicada pela Prefeitura estava inacessível na consulta; a carga OSM não forneceu geometria utilizável nesta atualização. Não há previsões de ônibus inventadas. O adapter de trânsito GeoJSON continua opcional; lentidão não é incorporada ao cálculo de tempo.
 - Bússola por ação explícita em aparelhos compatíveis, com tratamento de ausência ou recusa do sensor. Orientação manual disponível no mapa.
 - Celery nao e necessario para os fluxos sincronos atuais; ainda nao ha processamento de grandes importacoes em segundo plano.
 

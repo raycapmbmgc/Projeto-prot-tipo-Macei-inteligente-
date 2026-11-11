@@ -1,10 +1,11 @@
-export type Page='inicio'|'mapa'|'rotas'|'hospitais'|'favoritos'|'ocorrencias'|'hash'|'grafo'|'config';
+export type Page='inicio'|'mapa'|'rotas'|'hospitais'|'onibus'|'favoritos'|'ocorrencias'|'hash'|'grafo'|'config';
 
 export const pages:{id:Page;icon:string;label:string;title:string;description:string}[]=[
   {id:'inicio',icon:'⌂',label:'Início',title:'Encontre o hospital mais próximo',description:'Escolha um hospital, defina sua origem e compare os trajetos.'},
   {id:'mapa',icon:'▧',label:'Mapa',title:'Mapa de Maceió',description:'Explore os hospitais no mapa e consulte o percurso selecionado.'},
   {id:'rotas',icon:'⌁',label:'Rotas',title:'Rotas até o hospital',description:'Compare alternativas, personalize o caminho e inicie a navegação.'},
-  {id:'hospitais',icon:'✚',label:'Hospitais',title:'Hospitais de Maceió',description:'Consulte as unidades cadastradas e escolha um destino.'},
+  {id:'hospitais',icon:'✚',label:'Hospitais e UPAs',title:'Hospitais e UPAs de Maceió',description:'Consulte unidades públicas, particulares e de urgência do cadastro CNES.'},
+  {id:'onibus',icon:'▰',label:'Ônibus',title:'Ônibus de Maceió',description:'Consulte linhas, terminais e pontos próximos ao hospital.'},
   {id:'favoritos',icon:'☆',label:'Favoritos',title:'Meus locais e percursos',description:'Consulte os locais favoritos e o percurso salvo neste dispositivo.'},
   {id:'ocorrencias',icon:'⚑',label:'Ocorrências',title:'Ocorrências no caminho',description:'Registre obstáculos e consulte relatos da comunidade.'},
   {id:'hash',icon:'▤',label:'Tabela hash',title:'Tabela hash — ruas',description:'Consulta por identificador e situação das vias cadastradas.'},

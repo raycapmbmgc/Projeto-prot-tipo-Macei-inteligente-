@@ -4,6 +4,55 @@
 .original-main{min-width:0;display:flex;flex-direction:column;background:var(--bg)}
 .original-logo{display:block;margin-bottom:22px;padding:0;background:white;border-radius:12px;overflow:hidden;text-decoration:none;letter-spacing:0}
 .original-logo img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain}
+.original-shell .sidebar .original-logo{width:100%;max-width:208px;margin:0 auto 18px;border:1px solid #ffffff55;box-shadow:0 8px 24px #43061024;border-radius:14px;padding:4px;flex-shrink:0}
+.original-shell .sidebar .original-logo img{max-height:132px;object-fit:contain}
+.original-shell .sidebar{padding-top:24px}
+.original-shell .sidebar .tagline{padding:12px 14px;margin:0 0 20px;font-size:12px;line-height:1.6}
+.vehicle-profile{border:1px solid #e8dce0;background:#fcf8f9;border-radius:12px;padding:12px;margin:16px 0}
+.vehicle-profile legend{font-size:12px;font-weight:700;padding:0 6px;color:var(--red)}
+.vehicle-profile .hint{margin:8px 0 0}
+.vehicle-profile .check{margin-top:12px}
+.manual-origin{display:block;width:100%;margin:12px 0 0;background:transparent;color:white;border:1px solid #ffffff66}
+.manual-origin:hover{background:#ffffff18;color:white}
+.gps-help{font-size:11px;line-height:1.7;padding:10px 12px;margin-top:12px;border-radius:9px;background:#ffffff16;color:white}
+.facility-tags{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0}
+.facility-tags span{font-size:9px;border:1px solid #e9e1e4;background:#faf7f8;border-radius:16px;padding:3px 7px;color:#75606a}
+.hospital-card details.source-details{border-top:0;margin:8px 0;padding-top:0;font-size:10px}
+.source-details summary{color:#8b7c82;font-weight:500}
+.source-details a,.source-link{font-size:10px;color:var(--red)}
+.page-onibus{grid-template-columns:1fr}
+.page-onibus .map-panel{position:relative;top:0}
+.page-onibus .map-panel .map{height:380px;min-height:380px}
+.bus-map-marker{width:11px;height:11px;border-radius:50%;background:#176e92;border:2px solid white;box-shadow:0 1px 5px #0005}
+.map-panel .legend-line.bus{background:#176e92}
+.catalog-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0}
+.catalog-stats>div{background:#faf7f8;border:1px solid #eee4e7;border-radius:12px;padding:15px}
+.catalog-stats strong{display:block;font-size:26px;color:var(--red)}
+.catalog-stats span{font-size:11px;color:var(--muted)}
+.bus-search{max-width:700px;margin:20px 0}
+.bus-search>div{display:flex;gap:10px}
+.bus-search input{flex:1;min-width:0}
+.bus-search button{white-space:nowrap}
+.bus-section{border-top:1px solid var(--line);padding-top:22px;margin-top:24px}
+.bus-line-grid,.bus-stop-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;max-height:540px;overflow-y:auto;scrollbar-width:thin;padding:2px}
+.bus-stop-list{max-height:330px}
+.bus-card{border:1px solid var(--line);border-radius:12px;padding:15px;background:#fff;min-width:0}
+.bus-card.selected{border-color:#176e92;background:#f5fafc}
+.bus-card h3{font-size:13px;margin:8px 0;line-height:1.6}
+.bus-card p{font-size:11px;color:var(--muted);line-height:1.6}
+.bus-card button{font-size:11px;padding:7px 10px}
+.line-code{display:inline-block;min-width:44px;padding:5px 10px;border-radius:6px;background:#176e92;color:white;font-weight:750;font-size:13px}
+.terminal-link{display:block;border:0;background:none!important;color:#176e92;text-align:left;padding:5px 0!important;font-size:10px!important}
+.source-link{display:block;margin-top:10px}
+.source-notice{font-size:11px;color:var(--muted);padding:15px;background:#f5f7f8;border-radius:10px;margin:22px 0 0;line-height:1.7}
+.transit-planning{display:flex;align-items:center;justify-content:space-between;gap:20px;background:#f0f7fa;border:1px solid #d5e8f0;border-radius:14px;padding:18px}
+.transit-planning h2{font-size:16px;margin:0 0 7px}
+.transit-planning p{font-size:11px;color:var(--muted);line-height:1.7;margin:0}
+.transit-planning .button{display:block;white-space:nowrap;text-decoration:none;background:#176e92;font-size:11px}
+.admin-login{max-width:480px;margin-top:15px}
+.admin-login label{margin-top:18px}
+.admin-login .primary{margin-top:14px}
+@media(max-width:800px){.original-shell .sidebar .original-logo{max-width:145px;margin:0 auto 12px;padding:2px}.original-shell .sidebar{padding-top:12px}.original-shell .sidebar .original-logo img{max-height:92px}.catalog-stats{gap:8px}.catalog-stats>div{padding:10px}.catalog-stats strong{font-size:22px}.catalog-stats span{font-size:10px}.transit-planning{display:block}.transit-planning .button{margin-top:14px;white-space:normal;text-align:center}.bus-search>div{gap:6px}.page-onibus .map-panel .map{height:330px;min-height:330px}}
 .original-shell .sidebar .tagline{margin-bottom:22px}
 .original-shell .sidebar-bottom{margin-top:24px}
 .original-shell .topbar{padding:0 32px;position:relative}
@@ -36,7 +85,7 @@
 .map-surface{position:relative;min-width:0;overflow:hidden;border-radius:13px;border:1px solid #dbe4de;background:#eaf1ed}
 .map-panel .map{height:470px;min-height:470px;width:100%}
 .map-panel .map-label{top:14px;left:14px;padding:12px 14px;max-width:200px;pointer-events:none}
-.map-panel .map-tools{bottom:16px;right:12px;gap:6px;max-width:180px}
+.map-panel .map-tools{bottom:38px;right:12px;gap:6px;max-width:180px}
 .map-panel .map-tools button{padding:8px 11px;font-size:11px}
 .map-panel .map-legend{font-size:10px;margin:12px 0}
 .map-panel .legend-line{background:#a80d22}
@@ -49,6 +98,7 @@
 .original-shell .favorite button:first-child{max-width:600px}
 .original-shell .favorite{max-width:650px}
 .app-status{position:fixed;bottom:18px;right:22px;max-width:490px;z-index:1500;background:#172b36;color:white;border-radius:11px;padding:12px 16px;font-size:12px;line-height:1.55;box-shadow:0 5px 20px #172b3620}
+.app-status{display:flex;align-items:flex-start;gap:14px}.app-status>button{border:0;background:transparent;color:white;padding:0;font-size:18px;line-height:1.1}
 .original-shell .footer-note{font-size:10px;margin-top:25px}
 .original-shell .support-area h3{margin-top:18px}
 .original-shell input:not([type=checkbox]),.original-shell select,.original-shell textarea{font-size:12px}

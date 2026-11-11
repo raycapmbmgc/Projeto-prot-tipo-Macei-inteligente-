@@ -1,11 +1,12 @@
 import type {Point} from './navigation';
 
-export type Place = Point & {name:string; id?:number; address?:string; category?:string; source?:string; demo?:boolean; wheelchair?:'yes'|'no'|'unknown'; verified_at?:string; distance_m?:number};
+export type Place = Point & {name:string; id?:number; address?:string; category?:string; source?:string; source_url?:string; cnes?:string; facility_type?:string; unit_type?:string; ownership?:string; phone?:string|null; registry_updated_at?:string; routable?:boolean; demo?:boolean; wheelchair?:'yes'|'no'|'unknown'; verified_at?:string; distance_m?:number};
 export type Step = {instruction:string; coordinate:number[]; street:string; distance:number; duration:number};
 export type Route = {distance:number; duration:number; geometry:{type:'LineString'; coordinates:number[][]}; steps:Step[]};
 export type Road = {id:string; name:string; status:string; location?:Point|null; expires_at?:string|null; source?:string};
 export type Report = {id:string; description:string; kind:string; location:Point; verification:string; created_at:string; expires_at:string};
-export type Capabilities = {modes:string[]; transit:boolean; live_traffic:boolean; closure_routing:boolean; admin_protected:boolean; assistant:boolean};
+export type Capabilities = {modes:string[]; transit:boolean; bus_catalog?:boolean; live_traffic:boolean; closure_routing:boolean; admin_protected:boolean; assistant:boolean; assistant_provider?:'local'|'ollama'};
+export type BusRoute={id:string;code:string;name:string;source:string;from?:string;to?:string;geometry:{type:'MultiLineString';coordinates:number[][][]};stops:{id:string;lat:number;lon:number;role:string}[]};
 export type RouteReply = {routes:Route[]; provider:string; explanation:string; warnings:string[]};
 export type SavedRoute = {destination:Place; route:Route; savedAt:string; warnings:string[]};
 export const modeLabels:Record<string,string> = {car:'Carro',walk:'A pé',bike:'Bicicleta',wheelchair:'Cadeira de rodas'};
