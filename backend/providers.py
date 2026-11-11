@@ -6,12 +6,13 @@ import httpx
 from fastapi import HTTPException
 from backend.config import valhalla_url
 from backend.geometry import coordinates as shape_coordinates
+from backend.region import BOUNDS,CACHE_SCOPE,is_in_maceio
 lock=asyncio.Lock()
 last_search=0.0
 cache={}
 async def search(q):
  global last_search
- key=q.strip().casefold()
+ key=CACHE_SCOPE+':'+q.strip().casefold()
  if key in cache and time.monotonic()-cache[key][0]<86400: return cache[key][1]
  async with lock:
   if key in cache and time.monotonic()-cache[key][0]<86400: return cache[key][1]
@@ -19,10 +20,11 @@ async def search(q):
   last_search=time.monotonic()
   try:
    async with httpx.AsyncClient(timeout=12) as client:
-    r=await client.get(os.getenv("GEOCODER_URL","https://nominatim.openstreetmap.org/search"),params={"q":q,"format":"jsonv2","limit":5,"countrycodes":"br"},headers={"User-Agent":os.getenv("GEOCODER_USER_AGENT","MaceioInteligente/0.1 local-development")})
+    local_query=q.strip() if 'macei' in q.casefold() else q.strip()+', Maceió, Alagoas, Brasil'
+    r=await client.get(os.getenv("GEOCODER_URL","https://nominatim.openstreetmap.org/search"),params={"q":local_query,"format":"jsonv2","limit":10,"countrycodes":"br","viewbox":f'{BOUNDS[0]},{BOUNDS[3]},{BOUNDS[2]},{BOUNDS[1]}','bounded':1,'addressdetails':1},headers={"User-Agent":os.getenv("GEOCODER_USER_AGENT","MaceioInteligente/0.1 local-development")})
     r.raise_for_status()
-    result=[{"name":p["display_name"],"lat":float(p["lat"]),"lon":float(p["lon"])} for p in r.json()]
-  except (httpx.HTTPError,ValueError,KeyError): raise HTTPException(502,"Pesquisa indisponível")
+    result=[{"name":p["display_name"],"lat":float(p["lat"]),"lon":float(p["lon"])} for p in r.json() if is_in_maceio(float(p['lat']),float(p['lon']))]
+  except (httpx.HTTPError,ValueError,KeyError,TypeError): raise HTTPException(502,"Pesquisa de endereços indisponível em Maceió")
   if len(cache)>500: cache.clear()
   cache[key]=(time.monotonic(),result)
   return result

@@ -1,4 +1,5 @@
 import type {Point} from './navigation';
+import {isInMaceio} from './region';
 
 export type Place = Point & {name:string; id?:number; address?:string; category?:string; source?:string; source_url?:string; cnes?:string; facility_type?:string; unit_type?:string; ownership?:string; phone?:string|null; registry_updated_at?:string; routable?:boolean; demo?:boolean; wheelchair?:'yes'|'no'|'unknown'; verified_at?:string; distance_m?:number};
 export type Step = {instruction:string; coordinate:number[]; street:string; distance:number; duration:number};
@@ -30,7 +31,7 @@ export async function api<T>(path:string, options:RequestInit={}):Promise<T> {
 export function validPlace(value:unknown):value is Place {
   if (!value || typeof value!=='object') return false;
   const p=value as Place;
-  return typeof p.name==='string' && p.name.length<=500 && Number.isFinite(p.lat) && Math.abs(p.lat)<=90 && Number.isFinite(p.lon) && Math.abs(p.lon)<=180;
+  return typeof p.name==='string' && p.name.length<=500 && isInMaceio(p);
 }
 
 export function readFavorites():Place[] {

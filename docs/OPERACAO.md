@@ -10,6 +10,26 @@ Copie `.env.example` para `.env` se precisar de serviços opcionais. Variáveis 
 
 ## Hospitais e acessibilidade
 
+### Escopo municipal e localização
+
+O município permitido é Maceió, IBGE 2704302. A malha detalhada incluída em `data/maceio-boundary.json` foi obtida da [API de malhas do IBGE](https://servicodados.ibge.gov.br/api/docs/malhas?versao=3). Frontend e backend utilizam a mesma geometria; o teste automatizado confere a igualdade entre os arquivos.
+
+O geocodificador recebe `bounded=1`, o retângulo envolvente municipal e o contexto Maceió/Alagoas. O servidor também filtra o resultado pelo polígono, mesmo que o provedor ignore esses parâmetros. O cache de geocodificação possui um identificador de escopo próprio, evitando reutilizar pesquisas nacionais da versão anterior. A API de rotas rejeita origens, destinos e paradas fora do município.
+
+GPS fora de Maceió não é adotado como origem, e o mapa continua na cidade. Isso também se aplica a uma posição aproximada ou incorreta fornecida pelo navegador; nesse caso use a busca de origem manual. A plataforma não altera as coordenadas recebidas para fingir que o usuário está em Maceió. O mapa tem limites de navegação na região municipal.
+
+Uma unidade do catálogo CNES tem coordenadas fora da malha municipal nesta carga e permanece consultável, com o botão de rota desabilitado. A correção exige conferir sua localização na fonte; o sistema não inventa coordenadas substitutas.
+
+### Proximidade e limpeza
+
+Após definir origem manual ou GPS válido, a seção “Perto de você” ordena unidades por distância geométrica e consulta pontos em até 1,5 km. Consultas de pontos durante acompanhamento GPS são atualizadas após deslocamento significativo, evitando uma consulta a cada posição. No painel Ônibus é possível escolher origem/destino como referência e ajustar o raio para 500 m, 1,5 km ou 3 km.
+
+A comparação de modos é explícita e mantém a origem da consulta. Resultados são descartados quando a origem muda significativamente ou o destino/paradas mudam. Os perfis autorizado/ambulância precisam de declaração para efetivar o cálculo e não alteram permissões de circulação.
+
+“Limpar planejamento” interrompe acompanhamento e voz, cancela pesquisas/rotas/assistente pendentes e remove os dados transitórios. Os marcadores de origem e destino e a geometria do trajeto são removidos; uma resposta atrasada ou callback de GPS antigo não restaura a seleção. Favoritos e percursos salvos têm seus próprios controles de remoção. A limpeza do itinerário de ônibus também remove o ponto destacado, mesmo sem uma geometria de linha selecionada.
+
+Os testes de navegador usam GPS simulado dentro e fora de Maceió, conferem ordenação, limpeza, resposta de busca atrasada, ônibus pela origem e troca de modo na comparação. Isso não substitui o aceite físico de GPS em celular.
+
 O snapshot `data/healthcare-maceio.json` foi importado da API pública do Ministério da Saúde para o município 270430, tipos CNES 5, 7, 15, 20, 21, 62 e 73, com filtro de ativos. Inclui 50 registros (42 hospitais/hospitais-dia e 8 UPAs), com nomes, endereços, coordenadas e fonte. Natureza jurídica iniciada por 1 é classificada como pública; 2, 3, 4 ou 5, como particular/filantrópica. Isso não informa convênio, aceitação de pacientes, leitos ou acesso hospitalar pelo SUS.
 
 O carregamento conserva o código CNES e a data de atualização de cada registro. Dados cadastrais podem estar desatualizados ou ter coordenadas imprecisas: confirme o endereço e a entrada antes de uso operacional. Não foi feita uma auditoria física das 50 unidades. A lista reflete a cobertura e as datas da fonte, não uma certificação de todas as unidades em funcionamento.

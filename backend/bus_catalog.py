@@ -131,7 +131,7 @@ def point_segment_distance(lat,lon,a,b):
     return distance(lat,lon,a[1]+t*(b[1]-a[1]),a[0]+t*(b[0]-a[0]))
 
 
-def lines(q='',lat=None,lon=None,radius=800):
+def lines(q='',lat=None,lon=None,radius=800,nearby_only=False):
     data=snapshot()
     if not data:return {'lines':[],'mapped_routes':[],'source':OFFICIAL_PAGE}
     official=[dict(l,terminals=[s for s in data['stops'] if s['id'] in l['terminal_ids']]) for l in data['lines'] if q.casefold() in (l['code']+' '+l['name']).casefold()]
@@ -148,6 +148,7 @@ def lines(q='',lat=None,lon=None,radius=800):
             distances=[distance(lat,lon,s['lat'],s['lon']) for s in line['terminals']]
             line['terminal_distance_m']=round(min(distances)) if distances else None
         official.sort(key=lambda l:l['terminal_distance_m'] if l['terminal_distance_m'] is not None else float('inf'))
+        if nearby_only:official=[l for l in official if l['terminal_distance_m'] is not None and l['terminal_distance_m']<=radius]
         mapped.sort(key=lambda l:l['distance_m'])
     return {'lines':official,'mapped_routes':mapped,'source':OFFICIAL_PAGE,'fetched_at':data['fetched_at'],
             'note':'A proximidade de um terminal não comprova que a linha passa no hospital. Somente os itinerários mapeados podem ser comparados geometricamente.'}

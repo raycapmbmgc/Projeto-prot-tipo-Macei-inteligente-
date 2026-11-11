@@ -13,11 +13,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.gzip import GZipMiddleware
 from sqlalchemy import select,text
 from backend.database import Base,engine,Session,Place,Road,Report
-from backend.schemas import RouteRequest,RoadUpdate,RoadCreate,AssistantRequest,PlaceCreate,TransitRequest,ReportCreate,ReportReview
+from backend.schemas import RouteRequest,RoadUpdate,RoadCreate,AssistantRequest,PlaceCreate,TransitRequest,ReportCreate,ReportReview,Point
 from backend.geo import distance
 from backend import transit
 from backend import catalog,bus_catalog
 from backend.config import valhalla_url
+from backend.region import CACHE_SCOPE,require_local_route,require_maceio,is_in_maceio
 from backend.traffic import traffic
 from backend.assistant import interpret
 from backend.providers import search,calculate
@@ -100,12 +101,15 @@ def reload_catalog():
 
 @app.get('/api/transit/catalog/stops')
 def catalog_stops(lat:float=Query(ge=-90,le=90),lon:float=Query(ge=-180,le=180),radius:int=Query(default=800,ge=100,le=3000)):
+ require_maceio(Point(lat=lat,lon=lon))
  return bus_catalog.nearby_stops(lat,lon,radius)
 
 @app.get('/api/transit/lines')
-def bus_lines(q:str=Query(default='',max_length=150),lat:float|None=Query(default=None,ge=-90,le=90),lon:float|None=Query(default=None,ge=-180,le=180),radius:int=Query(default=800,ge=100,le=3000)):
+def bus_lines(q:str=Query(default='',max_length=150),lat:float|None=Query(default=None,ge=-90,le=90),lon:float|None=Query(default=None,ge=-180,le=180),radius:int=Query(default=800,ge=100,le=3000),nearby_only:bool=False):
  if (lat is None)!=(lon is None): raise HTTPException(422,'Informe latitude e longitude juntas.')
- return bus_catalog.lines(q,lat,lon,radius)
+ if nearby_only and lat is None: raise HTTPException(422,'Informe uma referência para buscar linhas próximas.')
+ if lat is not None: require_maceio(Point(lat=lat,lon=lon))
+ return bus_catalog.lines(q,lat,lon,radius,nearby_only)
 
 @app.get('/api/transit/lines/{line_id}')
 def bus_geometry(line_id:str): return bus_catalog.route(line_id)
@@ -157,12 +161,15 @@ def transit_stops(lat:float=Query(ge=-90,le=90),lon:float=Query(ge=-180,le=180),
  return transit.stops(lat,lon,radius)
 
 @app.post('/api/transit/journeys')
-def transit_journeys(body:TransitRequest): return transit.journeys(body)
+def transit_journeys(body:TransitRequest):
+ require_maceio(body.origin,'Origem');require_maceio(body.destination,'Destino')
+ return transit.journeys(body)
 
 @app.get('/api/traffic')
 async def traffic_feed(): return await traffic()
 @app.get('/api/places/nearby')
 def nearby(lat:float=Query(ge=-90,le=90),lon:float=Query(ge=-180,le=180),radius:int=Query(default=3000,ge=100,le=20000),category:str|None=Query(default=None,pattern='^(hospital|tourism|service)$'),wheelchair:bool=False):
+ require_maceio(Point(lat=lat,lon=lon))
  with Session() as db:
   if engine.dialect.name=='postgresql':
    rows=db.execute(text('SELECT id,data FROM places WHERE ST_DWithin(location::geography,ST_SetSRID(ST_MakePoint(:lon,:lat),4326)::geography,:radius)'),{'lat':lat,'lon':lon,'radius':radius})
@@ -171,7 +178,7 @@ def nearby(lat:float=Query(ge=-90,le=90),lon:float=Query(ge=-180,le=180),radius:
    candidates=[dict(p.data,id=p.id) for p in db.scalars(select(Place))]
   result=[]
   for p in candidates:
-   if p.get('active') is False or not p.get('routable',True): continue
+   if p.get('active') is False or not p.get('routable',True) or not is_in_maceio(p.get('lat'),p.get('lon')): continue
    if category and p.get('category','hospital')!=category: continue
    if wheelchair and (p.get('wheelchair')!='yes' or not p.get('verified_at')): continue
    d=distance(lat,lon,p['lat'],p['lon'])
@@ -180,6 +187,7 @@ def nearby(lat:float=Query(ge=-90,le=90),lon:float=Query(ge=-180,le=180),radius:
 
 def public_place(data):
  result=dict(data)
+ if not is_in_maceio(data.get('lat'),data.get('lon')): result['routable']=False
  if 'source' not in data:
   for key in ('distance','time','status'): result.pop(key,None)
   result.update(category='hospital',source='Demonstração do protótipo; confirme localização e atendimento',wheelchair='unknown',demo=True)
@@ -187,6 +195,7 @@ def public_place(data):
 
 @app.post('/api/places',status_code=201)
 def create_place(body:PlaceCreate):
+ require_maceio(body,'Unidade de saúde')
  data=body.model_dump(mode='json');data['name']=data['name'].strip()
  with Session.begin() as db:
   place=Place(data=data,**({'location':f'SRID=4326;POINT({body.lon} {body.lat})'} if engine.dialect.name=='postgresql' else {}))
@@ -229,7 +238,7 @@ async def create_road(body:RoadCreate):
 @app.get('/api/search')
 async def geocode(q:str=Query(min_length=3,max_length=180)):
  if not redis_client: return await search(q)
- key='geocode:'+hashlib.sha256(q.strip().casefold().encode()).hexdigest()
+ key='geocode:'+CACHE_SCOPE+':'+hashlib.sha256(q.strip().casefold().encode()).hexdigest()
  cached=await redis_client.get(key)
  if cached: return json.loads(cached)
  async with redis_client.lock('geocoder:rate',timeout=30,blocking_timeout=25):
@@ -242,13 +251,16 @@ async def geocode(q:str=Query(min_length=3,max_length=180)):
 @app.post('/api/assistant')
 async def assistant(body:AssistantRequest): return await interpret(body.message)
 @app.post('/api/routes')
-async def route(body:RouteRequest): return await calculate(body)
+async def route(body:RouteRequest):
+ require_local_route(body)
+ return await calculate(body)
 @app.get('/api/routes')
 async def legacy_route(lat:float,lon:float,hospital_id:int):
  with Session() as db:
   h=db.get(Place,hospital_id)
   if not h: raise HTTPException(404,'Hospital não encontrado')
   body=RouteRequest(origin={'lat':lat,'lon':lon},destination={'lat':h.data['lat'],'lon':h.data['lon']})
+ require_local_route(body)
  return dict(await calculate(body),code='Ok')
 @app.websocket('/ws/events')
 async def events(ws:WebSocket):

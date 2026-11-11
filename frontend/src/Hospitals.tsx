@@ -12,11 +12,12 @@ export function Hospitals({hospitals,origin,destination,favorites,onSelect,onFav
     .filter(h=>kind==='all'||h.facility_type===kind).filter(h=>ownership==='all'||h.ownership===ownership)
     .map(h=>({...h,distance_m:origin&&h.routable!==false?distance(origin,h):undefined})).sort((a,b)=>(a.distance_m??Infinity)-(b.distance_m??Infinity)),[hospitals,origin,filter,accessible,onlyFavorites,favorites,kind,ownership]);
   return <section className="hospital-section" aria-labelledby="hospital-title">
-    <div className="section-heading"><h2 id="hospital-title">Hospitais e UPAs</h2><span className="count">{list.length} / {hospitals.length}</span></div>
+    <div className="section-heading"><h2 id="hospital-title">{origin?'Mais próximos da sua origem':'Hospitais e UPAs'}</h2><span className="count">{list.length} / {hospitals.length}</span></div>
     <label htmlFor="hospital-search">Nome do hospital</label>
     <input id="hospital-search" type="search" value={filter} onChange={e=>setFilter(e.target.value)} placeholder="Ex.: Hospital Geral do Estado"/>
     <div className="field-pair"><div><label htmlFor="facility-kind">Tipo de unidade</label><select id="facility-kind" value={kind} onChange={e=>setKind(e.target.value)}><option value="all">Todas</option><option value="hospital">Hospitais e hospitais-dia</option><option value="upa">UPAs</option><option value="urgent_care">Pronto atendimento</option></select></div><div><label htmlFor="ownership">Rede</label><select id="ownership" value={ownership} onChange={e=>setOwnership(e.target.value)}><option value="all">Pública e particular</option><option value="public">Pública</option><option value="private">Particular / filantrópica</option></select></div></div>
     <div className="filter-row"><label><input type="checkbox" checked={onlyFavorites} onChange={e=>setOnlyFavorites(e.target.checked)}/> Favoritos</label><label><input type="checkbox" checked={accessible} onChange={e=>setAccessible(e.target.checked)}/> Acesso informado</label></div>
+    {(filter||kind!=='all'||ownership!=='all'||onlyFavorites||accessible)&&<button className="text-button" onClick={()=>{setFilter('');setKind('all');setOwnership('all');setOnlyFavorites(false);setAccessible(false);}}>Limpar filtros</button>}
     <p className="hint">{origin?'Ordenados pela distância em linha reta. O tempo por ruas aparece ao calcular a rota.':'Defina a origem para ordenar por proximidade.'} O cadastro não informa vagas, filas ou atendimento em tempo real.</p>
     {loading?<p role="status">Carregando hospitais…</p>:<div className="hospital-list">{list.map((h,i)=>{
       const saved=favorites.some(p=>samePlace(p,h));

@@ -4,6 +4,12 @@ Plataforma de **rotas para hospitais de Maceió**, com o visual original: menu l
 
 A versão Flask (`app.py`, `index.html`, `instance/maceio.sqlite3`) continua disponível separadamente, com suas APIs originais. O banco antigo não é substituído nem apagado. Para os recursos novos, utilize `run.py` ou `iniciar.ps1`.
 
+Busca, origem, destino e paradas são restritos a Maceió usando a malha municipal do IBGE (2704302). Se o GPS informar São Paulo ou outra cidade, a posição é rejeitada e a interface permite definir uma origem manual em Maceió. Não há substituição silenciosa da posição por uma localização fictícia. O GPS solicita uma posição nova, sem reutilizar uma posição antiga do cache do navegador.
+
+Com a origem definida, “Perto de você” mostra hospitais/UPAs e pontos de ônibus ordenados por proximidade. A tela Ônibus usa a origem por padrão e permite trocar a referência para o destino. “Rotas para cada modo e perfil” compara os trajetos por ação explícita; carro comum, autorizado e ambulância usam as mesmas permissões viárias.
+
+“Limpar planejamento” cancela consultas pendentes, interrompe o GPS e remove origem, destino, paradas, trajeto e comparação da tela. “Limpar itinerário” remove o percurso e o ponto destacado de ônibus. “Limpar busca” e “Limpar filtros” atuam nos respectivos campos.
+
 Consulte a [matriz dos 20 requisitos da ERS](docs/REQUISITOS.md) e o [guia de operação e configuração](docs/OPERACAO.md). O cadastro inclui uma carga real do CNES e da planilha municipal de transporte. Carro, caminhada e bicicleta usam por padrão um Valhalla comunitário; o assistente possui planejamento local sem exigir IA externa. O aceite de GPS e navegação em dispositivo físico continua necessário.
 
 ## Dados incluídos
