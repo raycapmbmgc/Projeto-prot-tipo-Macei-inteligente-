@@ -38,6 +38,10 @@ def init_db():
 def home():
     return send_file(ROOT / "index.html")
 
+@app.get('/branding/logo.png')
+def logo():
+    return send_file(ROOT / 'frontend' / 'public' / 'logo-maceio.png', mimetype='image/png', max_age=86400)
+
 @app.get("/api/health")
 def health():
     with connect() as db:

@@ -1,9 +1,5 @@
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import AsyncMock, patch
-os.environ['DATABASE_URL']='sqlite:///'+str(Path(tempfile.mkdtemp())/'platform.db').replace('\\','/')
-os.environ.pop('REDIS_URL',None)
 from fastapi.testclient import TestClient
 from backend.main import app
 

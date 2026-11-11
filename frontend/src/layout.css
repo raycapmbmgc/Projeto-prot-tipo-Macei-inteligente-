@@ -1,0 +1,61 @@
+[hidden]{display:none!important}
+.app.original-shell{display:grid;grid-template-columns:258px minmax(0,1fr);height:auto;min-height:100dvh}
+.original-shell .sidebar{position:sticky;top:0;height:100dvh;overflow-y:auto;border:0;z-index:5}
+.original-main{min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+.original-logo{display:block;margin-bottom:22px;padding:0;background:white;border-radius:12px;overflow:hidden;text-decoration:none;letter-spacing:0}
+.original-logo img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:contain}
+.original-shell .sidebar .tagline{margin-bottom:22px}
+.original-shell .sidebar-bottom{margin-top:24px}
+.original-shell .topbar{padding:0 32px;position:relative}
+.original-shell .topbar .searchbox{max-width:550px;min-width:140px}
+.original-shell .searchbox input{padding-right:90px}
+.search-submit{position:absolute;right:6px;top:5px;padding:8px 12px;font-size:11px;background:white;border:1px solid var(--line)}
+.connection-pill{border:1px solid var(--line);border-radius:20px;padding:8px 11px;color:var(--muted);font-size:11px;white-space:nowrap}
+.connection-pill.offline{background:#fff1ce;color:#8c6200}
+.original-shell .content{width:100%;padding:28px 30px 80px}
+.hospital-workspace{display:grid;grid-template-columns:minmax(320px,.95fr) minmax(0,1.35fr);gap:20px;align-items:start}
+.planner-column{display:grid;gap:20px;min-width:0}
+.origin-card h1{font-size:24px;line-height:1.25;letter-spacing:-.6px;margin:10px 0}
+.origin-card .eyebrow,.origin-card .hint,.origin-card .muted{color:#ffe1e6}
+.origin-card .eyebrow{margin-top:0}
+.origin-card .primary{background:white;border-color:white;color:var(--red);margin:5px 0}
+.origin-card .hint{margin-bottom:0}
+.original-shell .route-planner{border:1px solid #f0f1f4;padding:22px;scroll-margin:20px}
+.hospital-section{margin:0}
+.hospital-section .section-heading h2{margin-bottom:0}
+.original-shell .hospital-list{max-height:400px}
+.original-shell .hospital-card{box-shadow:none;padding:13px}
+.original-shell .hospital-card h3{font-size:13px;margin:0}
+.original-shell .hospital-card .primary{font-size:11px}
+.hospital-workspace.page-hospitais{grid-template-columns:1fr}
+.page-hospitais .hospital-list{max-height:none;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+.map-panel{position:sticky;top:20px;padding:20px;min-width:0}
+.map-panel .card-head h2{font-size:15px;line-height:1.5;margin:5px 0 0}
+.map-panel .card-head .eyebrow{font-size:9px;letter-spacing:1.2px}
+.map-panel .card-head .badge{white-space:normal;text-align:center;max-width:135px;background:#f6ecee;color:var(--red)}
+.map-surface{position:relative;min-width:0;overflow:hidden;border-radius:13px;border:1px solid #dbe4de;background:#eaf1ed}
+.map-panel .map{height:470px;min-height:470px;width:100%}
+.map-panel .map-label{top:14px;left:14px;padding:12px 14px;max-width:200px;pointer-events:none}
+.map-panel .map-tools{bottom:16px;right:12px;gap:6px;max-width:180px}
+.map-panel .map-tools button{padding:8px 11px;font-size:11px}
+.map-panel .map-legend{font-size:10px;margin:12px 0}
+.map-panel .legend-line{background:#a80d22}
+.map-panel .route-metrics{margin-top:12px}
+.map-panel .route-metrics strong{font-size:21px}
+.map-panel .hint{margin:8px 0 0}
+.support-area{margin-top:20px}
+.support-area>details:first-child{margin-top:0;border-top:0;padding-top:0}
+.support-area>details{max-width:850px}
+.original-shell .favorite button:first-child{max-width:600px}
+.original-shell .favorite{max-width:650px}
+.app-status{position:fixed;bottom:18px;right:22px;max-width:490px;z-index:1500;background:#172b36;color:white;border-radius:11px;padding:12px 16px;font-size:12px;line-height:1.55;box-shadow:0 5px 20px #172b3620}
+.original-shell .footer-note{font-size:10px;margin-top:25px}
+.original-shell .support-area h3{margin-top:18px}
+.original-shell input:not([type=checkbox]),.original-shell select,.original-shell textarea{font-size:12px}
+.original-shell .searchbox input{font-size:13px}
+.original-shell .route-options strong{font-size:22px}
+.original-shell .hospital-map-marker{border-radius:50%!important}
+.original-shell .topbar form>button{width:auto;margin:0}
+@media(min-width:1500px){.hospital-workspace{grid-template-columns:minmax(360px,1fr) minmax(0,1.5fr)}.map-panel .map{height:540px}}
+@media(max-width:1150px){.app.original-shell{grid-template-columns:215px minmax(0,1fr)}.original-shell .sidebar{width:215px;padding:22px 14px}.original-shell .content{padding:24px 18px 90px}.hospital-workspace{grid-template-columns:1fr}.map-panel{position:relative;top:0;grid-row:1}.page-inicio .map-panel{grid-row:auto}.map-panel .map{height:400px;min-height:400px}}
+@media(max-width:800px){.app.original-shell{display:block}.original-shell .sidebar{position:relative;top:auto;height:auto;width:100%;padding:12px 14px}.original-logo{max-width:155px;margin-bottom:10px}.original-shell .nav{display:flex;overflow-x:auto;gap:5px}.original-shell .nav button{white-space:nowrap;padding:10px 12px;font-size:12px}.original-shell .tagline,.original-shell .nav-label,.original-shell .sidebar-bottom{display:none}.original-shell .topbar{height:auto;padding:14px;gap:10px}.top-actions{gap:5px}.original-shell .topbar .circle-btn{display:none}.connection-pill{font-size:10px;padding:7px}.original-shell .content{padding:22px 12px 110px}.original-shell .page-heading h1{font-size:25px}.hospital-workspace{gap:14px}.planner-column{gap:14px}.map-panel{padding:14px}.map-panel .map{height:350px;min-height:350px}.map-panel .map-label{top:12px;font-size:9px;max-width:165px;padding:10px}.map-panel .map-label span{font-size:9px}.map-panel .map-tools{max-width:150px}.original-shell .card{border-radius:14px}.original-shell .route-planner{padding:16px}.app-status{left:12px;right:12px;bottom:12px;max-width:none;font-size:11px;max-height:110px;overflow:auto}.page-hospitais .hospital-list{grid-template-columns:1fr}.origin-card h1 br{display:none}}
