@@ -1,7 +1,7 @@
 # Maceio Inteligente
  https://projeto-prot-tipo-macei-inteligente.onrender.com
 
-**Identidade e navegação (nov/2026):** nova marca (pino de destino com cruz), paleta vinho (#870E27 / #650B1D) e fonte Nunito. Ao abrir o site, o GPS é solicitado; com a localização em Maceió, a unidade mais próxima é escolhida e a rota é traçada automaticamente. O cartão “Rota pronta” inicia a navegação em tela cheia, com manobra em destaque e chegada estimada. No celular, abas inferiores dão acesso a Explorar, Unidades, Ônibus e Alertas; o SAMU 192 fica sempre visível.
+**Identidade e navegação (nov/2026):** nova marca (pino de destino com cruz), paleta vinho (#870E27 / #650B1D) e fonte Nunito. Ao abrir o site, o GPS é solicitado; com a localização em Maceió, a UPA ou hospital geral mais próximo é escolhido e a rota é traçada automaticamente (as demais unidades seguem disponíveis em Unidades). O cartão “Rota pronta” inicia a navegação em tela cheia, com manobra em destaque e chegada estimada. No celular, abas inferiores dão acesso a Explorar, Unidades, Ônibus e Alertas; o SAMU 192 fica sempre visível.
 
 Plataforma de **rotas para hospitais de Maceió**, com o visual original: menu lateral vermelho, painel, mapa, hospitais e alternativas de trajeto. A logo fornecida está integrada à plataforma e ao protótipo HTML. As funcionalidades da ERS foram conectadas à arquitetura FastAPI + React/TypeScript + MapLibre.
 

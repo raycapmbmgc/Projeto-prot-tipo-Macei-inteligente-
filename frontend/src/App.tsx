@@ -251,10 +251,13 @@ export default function App(){
   useEffect(()=>{
     if(autoRoute.current!=='pending'||!origin)return;
     if(destination){autoRoute.current='routing';return;}
-    const candidates=hospitals.filter(h=>h.routable!==false&&Number.isFinite(h.lat)&&Number.isFinite(h.lon)&&isInMaceio(h));
+    const routable=hospitals.filter(h=>h.routable!==false&&Number.isFinite(h.lat)&&Number.isFinite(h.lon)&&isInMaceio(h));
+    // Para urgência, prioriza UPAs e hospitais gerais; usa as demais unidades só se não houver nenhuma.
+    const urgent=routable.filter(h=>h.facility_type==='upa'||h.unit_type==='Hospital geral');
+    const candidates=urgent.length?urgent:routable;
     if(!candidates.length)return;
     const nearest=candidates.reduce((best,h)=>distance(origin,h)<distance(origin,best)?h:best,candidates[0]);
-    autoRoute.current='routing';autoDestination.current=nearest;setDestination(nearest);setStatus('Unidade mais próxima: '+nearest.name+'. Traçando a rota…');
+    autoRoute.current='routing';autoDestination.current=nearest;setDestination(nearest);setStatus('Urgência mais próxima: '+nearest.name+'. Traçando a rota…');
   },[origin,destination,hospitals]);
   useEffect(()=>{
     if(autoRoute.current!=='routing'||!origin||!destination)return;
@@ -325,7 +328,7 @@ export default function App(){
   const entryMessage=entryError||gpsError||locationIssue||(origin&&hospitalsFailed?'Não foi possível carregar as unidades de saúde. Confira a conexão e tente novamente.':'');
   const entrySteps=[
     {label:'Encontrar sua localização',state:origin?'done':'active'},
-    {label:'Achar a unidade mais próxima',state:origin&&destination?'done':origin?'active':'pending'},
+    {label:'Achar a urgência mais próxima',state:origin&&destination?'done':origin?'active':'pending'},
     {label:'Traçar a rota',state:routes.length?'done':busy?'active':'pending'}
   ];
   const autoChosen=!!(destination&&autoDestination.current&&samePlace(destination,autoDestination.current));
@@ -385,7 +388,7 @@ export default function App(){
     <div className="map-label">✚ HOSPITAIS <span>Toque em uma cruz para selecionar</span></div>
     <div className="map-tools"><Compass map={map.current}/><button onClick={()=>{if(origin){setFollow(true);map.current?.easeTo({center:[origin.lon,origin.lat],zoom:17});}}} disabled={!origin}>◎ Centralizar</button></div>
     {route&&destination&&!preview&&nav!=='active'&&page!=='onibus'&&<section className="ready-card" aria-label="Rota pronta">
-      <div className="ready-head"><span className="ready-label"><i aria-hidden="true"/>{autoChosen?'Rota pronta · mais próxima':'Rota pronta'}</span><button type="button" className="ready-change" onClick={()=>{setPage('rotas');requestAnimationFrame(()=>routePanel.current?.scrollIntoView({behavior:'smooth',block:'start'}));}}>Trocar</button></div>
+      <div className="ready-head"><span className="ready-label"><i aria-hidden="true"/>{autoChosen?'Urgência mais próxima':'Rota pronta'}</span><button type="button" className="ready-change" onClick={()=>{setPage('rotas');requestAnimationFrame(()=>routePanel.current?.scrollIntoView({behavior:'smooth',block:'start'}));}}>Trocar</button></div>
       <div className="ready-body"><span className="ready-icon" aria-hidden="true">✚</span><div className="ready-name"><strong>{destination.name}</strong><small>{facilityLabel(destination)}</small></div><div className="ready-eta"><b>{Math.max(1,Math.round(route.duration/60))} min</b><small>{formatMeters(route.distance)}</small></div></div>
       <div className="ready-actions"><button type="button" className="ready-start" disabled={busy} onClick={startNavigation}><span aria-hidden="true">➤</span> Iniciar navegação</button><a className="samu-link" href="tel:192" aria-label="Ligar para o SAMU, 192">SAMU 192</a></div>
     </section>}
@@ -419,7 +422,7 @@ export default function App(){
       <div className="entry-brand"><img src="/brand/simbolo.svg" alt="" width="56" height="56"/><span className="brand-wordmark"><strong>Maceió</strong><small>Inteligente</small></span></div>
       {!entryMessage&&<div className="entry-radar" aria-hidden="true"><span/></div>}
       <h2 id="entry-title">{entryMessage?(origin?'Não conseguimos traçar a rota':'Não conseguimos sua localização'):!origin?'Localizando você…':'Traçando a rota…'}</h2>
-      <p>{entryMessage||(!origin?'Permita o acesso à localização quando o navegador pedir. Em seguida traçamos a rota até a unidade de saúde mais próxima.':destination?destination.name:'Procurando a unidade de saúde mais próxima…')}</p>
+      <p>{entryMessage||(!origin?'Permita o acesso à localização quando o navegador pedir. Em seguida traçamos a rota até a UPA ou hospital geral mais próximo.':destination?destination.name:'Procurando a UPA ou hospital geral mais próximo…')}</p>
       {!entryMessage&&<ol className="entry-steps">{entrySteps.map(s=><li key={s.label} className={s.state}><span aria-hidden="true">{s.state==='done'?'✓':''}</span>{s.label}</li>)}</ol>}
       <div className="entry-actions">
         {entryMessage&&<button type="button" className="primary" onClick={enterManualOrigin}>Digitar onde estou</button>}
