@@ -1,6 +1,7 @@
 ﻿import {createRoot} from 'react-dom/client';
 import App from './App';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import './fonts.css';
 import './style.css';
 import './original.css';
 import './layout.css';
