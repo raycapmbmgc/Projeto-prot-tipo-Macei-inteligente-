@@ -15,6 +15,36 @@ import {RouteComparison,type RouteChoice} from './RouteComparison';
 
 const initialCapabilities:Capabilities={modes:['car'],transit:false,live_traffic:false,closure_routing:false,admin_protected:true,assistant:false};
 type Traffic={source:string|null;features:{geometry:{coordinates:number[]};properties:{id:string;description:string;status:string;observed_at:string}}[]};
+const mobileTabs:{id:Page;icon:string;label:string}[]=[{id:'inicio',icon:'⌖',label:'Explorar'},{id:'hospitais',icon:'✚',label:'Unidades'},{id:'onibus',icon:'▰',label:'Ônibus'},{id:'ocorrencias',icon:'⚑',label:'Alertas'}];
+function facilityLabel(p:Place){
+  const kind=p.facility_type==='upa'?'UPA':p.unit_type||'Unidade de saúde';
+  const network=p.ownership==='public'?'Rede pública':p.ownership==='private'?'Particular / filantrópica':'';
+  return network?kind+' · '+network:kind;
+}
+const maneuverPaths={
+  straight:'M12 20V5M6 11l6-6 6 6',
+  right:'M7 21v-8a4 4 0 0 1 4-4h8M15 5l4 4-4 4',
+  left:'M17 21v-8a4 4 0 0 0-4-4H5M9 5L5 9l4 4',
+  uturn:'M8 20V10a4.5 4.5 0 0 1 9 0v3M13.5 10l3.5 3.5 3.5-3.5',
+  roundabout:'M12 21v-5M12 16a4 4 0 1 1 4-4M16 12h4M18 10l2 2-2 2',
+  arrive:'M6 21V4M6 4h11l-2 4 2 4H6'
+};
+function maneuverKind(instruction:string|undefined):keyof typeof maneuverPaths{
+  const text=(instruction??'').toLocaleLowerCase('pt-BR');
+  if(text.includes('destino')||text.includes('chegue'))return 'arrive';
+  if(text.includes('rotatória'))return 'roundabout';
+  if(text.includes('retorno'))return 'uturn';
+  if(text.includes('esquerda'))return 'left';
+  if(text.includes('direita'))return 'right';
+  return 'straight';
+}
+function ManeuverIcon({instruction}:{instruction?:string}){
+  return <svg className="nav-arrow" viewBox="0 0 24 24" width="52" height="52" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={maneuverPaths[maneuverKind(instruction)]}/></svg>;
+}
+function formatMeters(meters:number){
+  if(meters<1000)return Math.max(0,Math.round(meters/10)*10)+' m';
+  return (meters/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' km';
+}
 
 export default function App(){
   const [page,setPage]=useState<Page>('inicio'),[globalQuery,setGlobalQuery]=useState('');
@@ -35,6 +65,8 @@ export default function App(){
   const [nav,setNav]=useState<'idle'|'active'|'paused'>('idle'),[progress,setProgress]=useState(0),[remaining,setRemaining]=useState(0),[step,setStep]=useState(0),[voice,setVoice]=useState(false);
   const [query,setQuery]=useState(''),[searchFor,setSearchFor]=useState<'origin'|'destination'|'waypoint'>('origin'),[results,setResults]=useState<Place[]>([]);
   const [assistantMessage,setAssistantMessage]=useState(''),[assistantReply,setAssistantReply]=useState(''),[assistantBusy,setAssistantBusy]=useState(false);
+  const [entryOpen,setEntryOpen]=useState(true),[entryError,setEntryError]=useState(''),[gpsError,setGpsError]=useState('');
+  const autoRoute=useRef<'pending'|'routing'|'done'>('pending'),autoDestination=useRef<Place|null>(null);
   const route=preview?undefined:routes[chosen],displayRoute=preview?.route??route,displayDestination=preview?.destination??destination;
   const nearby=useNearbyStops(origin,tracking);
   const stepProgress=useMemo(()=>route?.steps.map(s=>project({lat:s.coordinate[1],lon:s.coordinate[0]},route.geometry.coordinates).progress)??[],[route]);
@@ -66,6 +98,7 @@ export default function App(){
     setProgress(0);setRemaining(0);setStep(0);setVoice(false);setMode('car');setObjective('fastest');setVehicleProfile('standard');setAuthorizationDeclared(false);
     setAvoidSteps(false);setPreferLit(false);setAvoidHills(false);setAssistantMessage('');setAssistantReply('');setGpsDenied(false);setLocationIssue('');
     setBusRoute(null);setFocusedStop(null);setBusReset(v=>v+1);setPage('inicio');
+    autoRoute.current='pending';autoDestination.current=null;setEntryError('');setGpsError('');
     gpsMarker.current?.remove();gpsMarker.current=null;
     map.current?.easeTo({center:MACEIO_CENTER,zoom:13});setStatus('Planejamento limpo. Defina uma origem em Maceió para começar.');
   }
@@ -78,10 +111,10 @@ export default function App(){
     setStatus('Trajeto selecionado: '+modeLabels[choice.mode]+'. Confira as instruções antes de iniciar.');
   }
   function locate(){
-    if(!navigator.geolocation){startRequested.current=false;setStatus('Localização indisponível. Pesquise a origem manualmente.');return;}
-    if(!window.isSecureContext){startRequested.current=false;setStatus('O GPS exige uma conexão HTTPS ou acesso local. Pesquise a origem manualmente.');return;}
+    if(!navigator.geolocation){startRequested.current=false;const message='Localização indisponível neste navegador. Informe onde você está.';setGpsError(message);setStatus(message);return;}
+    if(!window.isSecureContext){startRequested.current=false;const message='O GPS exige uma conexão HTTPS. Informe onde você está.';setGpsError(message);setStatus(message);return;}
     if(watch.current!==null)return;
-    setStatus('Aguardando permissão de localização…');setFollow(true);setGpsDenied(false);setLocationIssue('');
+    setStatus('Aguardando permissão de localização…');setFollow(true);setGpsDenied(false);setLocationIssue('');setGpsError('');
     const epoch=++gpsEpoch.current;
     watch.current=navigator.geolocation.watchPosition(p=>{
       if(epoch!==gpsEpoch.current)return;
@@ -91,7 +124,7 @@ export default function App(){
       setOrigin(point);setOriginName('Minha localização em Maceió');setAccuracy(p.coords.accuracy);setTracking(true);
       if(startRequested.current){startRequested.current=false;setNav('active');}
       setStatus('GPS atualizado. Confira a precisão antes de seguir.');
-    },e=>{if(epoch!==gpsEpoch.current)return;stopGps();setGpsDenied(e.code===1);setStatus(e.code===1?'O navegador bloqueou a localização. Você pode informar sua origem manualmente.':'Sem sinal de localização. Tente novamente ou informe sua origem.');},{enableHighAccuracy:true,maximumAge:0,timeout:15000});
+    },e=>{if(epoch!==gpsEpoch.current)return;stopGps();setGpsDenied(e.code===1);const message=e.code===1?'O navegador bloqueou a localização. Você pode informar sua origem manualmente.':'Sem sinal de localização. Tente novamente ou informe sua origem.';setGpsError(message);setStatus(message);},{enableHighAccuracy:true,maximumAge:0,timeout:15000});
   }
   async function loadHospitals(){
     setHospitalsLoading(true);
@@ -111,7 +144,7 @@ export default function App(){
     try{
       m=new maplibregl.Map({container:container.current!,style:{version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap contributors'}},layers:[{id:'osm',type:'raster',source:'osm'}]},center:MACEIO_CENTER,maxBounds:MACEIO_MAP_BOUNDS,zoom:13});map.current=m;
       m.addControl(new maplibregl.NavigationControl());
-      m.on('style.load',()=>{m!.addSource('route',{type:'geojson',data:{type:'FeatureCollection',features:[]}});m!.addLayer({id:'route',type:'line',source:'route',paint:{'line-color':'#a80d22','line-width':6}});m!.addSource('bus',{type:'geojson',data:{type:'FeatureCollection',features:[]}});m!.addLayer({id:'bus',type:'line',source:'bus',paint:{'line-color':'#176e92','line-width':5,'line-opacity':.85}});setReady(true);});
+      m.on('style.load',()=>{m!.addSource('route',{type:'geojson',data:{type:'FeatureCollection',features:[]}});m!.addLayer({id:'route-casing',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#ffffff','line-width':11}});m!.addLayer({id:'route',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#870E27','line-width':7}});m!.addSource('bus',{type:'geojson',data:{type:'FeatureCollection',features:[]}});m!.addLayer({id:'bus',type:'line',source:'bus',paint:{'line-color':'#176e92','line-width':5,'line-opacity':.85}});setReady(true);});
       m.on('click',e=>{const point={lat:e.lngLat.lat,lon:e.lngLat.lng};if(!isInMaceio(point)){setStatus('Selecione um ponto dentro de Maceió.');return;}invalidate();setDestination({...point,name:'Ponto selecionado em Maceió'});setStatus('Ponto selecionado. Para ir a um hospital, escolha-o na lista.');});
       m.on('dragstart',()=>setFollow(false));m.on('error',()=>setStatus('O mapa não carregou completamente. Confira a conexão; a lista de hospitais continua disponível.'));
     }catch{setStatus('Mapa indisponível neste navegador. Você ainda pode pesquisar hospitais e consultar instruções.');}
@@ -128,9 +161,10 @@ export default function App(){
     }
     connect();
     const polling=window.setInterval(()=>void refreshIncidents(),60000);
+    locate();
     return()=>{disposed=true;clearTimeout(timer);clearInterval(polling);ws?.close();window.removeEventListener('online',connected);window.removeEventListener('offline',disconnected);routeController.current?.abort();searchController.current?.abort();if(watch.current!==null)navigator.geolocation.clearWatch(watch.current);window.speechSynthesis?.cancel();m?.remove();};
   },[]);
-  useEffect(()=>{const frame=requestAnimationFrame(()=>map.current?.resize());return()=>cancelAnimationFrame(frame);},[page]);
+  useEffect(()=>{const frame=requestAnimationFrame(()=>map.current?.resize());return()=>cancelAnimationFrame(frame);},[page,nav]);
   useEffect(()=>{
     if(!caps.live_traffic)return;
     let disposed=false;
@@ -151,6 +185,7 @@ export default function App(){
     source?.setData(busRoute?{type:'Feature',properties:{},geometry:busRoute.geometry}:{type:'FeatureCollection',features:[]});
     map.current.setLayoutProperty('bus','visibility',page==='onibus'?'visible':'none');
     map.current.setLayoutProperty('route','visibility',page==='onibus'?'none':'visible');
+    map.current.setLayoutProperty('route-casing','visibility',page==='onibus'?'none':'visible');
     if(busRoute&&page==='onibus'){const bounds=new maplibregl.LngLatBounds();busRoute.geometry.coordinates.flat().forEach(c=>bounds.extend([c[0],c[1]]));map.current.fitBounds(bounds,{padding:50});}
     const markers=page==='onibus'?(busRoute?.stops??[]).map(s=>{const el=document.createElement('div');el.className='bus-map-marker';el.title='Parada do itinerário OSM';return new maplibregl.Marker({element:el}).setLngLat([s.lon,s.lat]).addTo(map.current!);}):[];
     return()=>markers.forEach(m=>m.remove());
@@ -175,7 +210,7 @@ export default function App(){
   },[reports,traffic,ready]);
   useEffect(()=>{
     if(!ready||!map.current||!displayDestination)return;
-    const marker=new maplibregl.Marker({color:'#a80d22'}).setLngLat([displayDestination.lon,displayDestination.lat]).addTo(map.current);return()=>{marker.remove();};
+    const marker=new maplibregl.Marker({color:'#650B1D'}).setLngLat([displayDestination.lon,displayDestination.lat]).addTo(map.current);return()=>{marker.remove();};
   },[displayDestination,ready]);
   useEffect(()=>{
     if(!ready||!map.current)return;
@@ -185,7 +220,7 @@ export default function App(){
   useEffect(()=>{
     if(!origin){gpsMarker.current?.remove();gpsMarker.current=null;return;}
     if(!ready||!map.current)return;
-    if(!gpsMarker.current){gpsMarker.current=new maplibregl.Marker({color:'#2563eb'}).setLngLat([origin.lon,origin.lat]).addTo(map.current);gpsMarker.current.getElement().classList.add('origin-map-marker');}
+    if(!gpsMarker.current){gpsMarker.current=new maplibregl.Marker({color:'#352B30'}).setLngLat([origin.lon,origin.lat]).addTo(map.current);gpsMarker.current.getElement().classList.add('origin-map-marker');}
     gpsMarker.current.setLngLat([origin.lon,origin.lat]);
     if(follow)map.current.easeTo({center:[origin.lon,origin.lat],zoom:nav==='active'?17:15});
   },[origin,follow,nav,ready]);
@@ -198,18 +233,54 @@ export default function App(){
   // Reset instructions even if WebGL is unavailable.
   useEffect(()=>{setStep(0);setProgress(0);setRemaining(displayRoute?.distance??0);spoken.current='';},[displayRoute]);
 
-  async function calculate(from=origin){
-    if(!from||!destination){setStatus('Defina sua origem e selecione um hospital.');return;}
+  async function calculate(from=origin):Promise<boolean>{
+    if(!from||!destination){setStatus('Defina sua origem e selecione um hospital.');return false;}
     routeController.current?.abort();const controller=new AbortController();routeController.current=controller;
     const id=++requestId.current;setBusy(true);setPreview(null);
     try{
       const pedestrian=mode==='walk'||mode==='wheelchair';
       const reply=await api<RouteReply>('/routes',{method:'POST',signal:controller.signal,body:JSON.stringify({origin:from,destination,mode,objective,vehicle_profile:mode==='car'?vehicleProfile:'standard',authorization_declared:authorizationDeclared,waypoints:waypoints.slice(passed.current),avoid_steps:pedestrian&&avoidSteps,prefer_lit:pedestrian&&preferLit,avoid_hills:pedestrian&&avoidHills})});
-      if(id!==requestId.current)return;
+      if(id!==requestId.current)return true;
       if(!reply.routes.length)throw Error('Nenhum trajeto encontrado. Tente outro ponto de origem.');
       setRoutes(reply.routes);setChosen(0);setWarnings(reply.warnings);setExplanation(reply.provider+' · '+reply.explanation);setStatus('Trajeto calculado. Confira as instruções antes de iniciar.');
-    }catch(e){if(id===requestId.current&&(e as Error).name!=='AbortError'){setNav('paused');setStatus((e as Error).message);}}
+      return true;
+    }catch(e){if(id===requestId.current&&(e as Error).name!=='AbortError'){setNav('paused');setStatus((e as Error).message);return false;}return true;}
     finally{if(id===requestId.current)setBusy(false);}
+  }
+  // Fluxo de entrada: com a origem definida, escolhe a unidade mais próxima e traça a rota automaticamente.
+  useEffect(()=>{
+    if(autoRoute.current!=='pending'||!origin)return;
+    if(destination){autoRoute.current='routing';return;}
+    const candidates=hospitals.filter(h=>h.routable!==false&&Number.isFinite(h.lat)&&Number.isFinite(h.lon)&&isInMaceio(h));
+    if(!candidates.length)return;
+    const nearest=candidates.reduce((best,h)=>distance(origin,h)<distance(origin,best)?h:best,candidates[0]);
+    autoRoute.current='routing';autoDestination.current=nearest;setDestination(nearest);setStatus('Unidade mais próxima: '+nearest.name+'. Traçando a rota…');
+  },[origin,destination,hospitals]);
+  useEffect(()=>{
+    if(autoRoute.current!=='routing'||!origin||!destination)return;
+    autoRoute.current='done';
+    if(!online){setEntryError('Sem conexão para traçar a rota. Confira a rede e tente novamente.');return;}
+    void calculate(origin).then(ok=>{if(ok){setFollow(false);setStatus('');}else setEntryError('Não foi possível traçar a rota agora. Tente novamente ou escolha outra unidade.');});
+  },[origin,destination,online]);
+  useEffect(()=>{if(entryOpen&&(routes.length>0||nav==='active'))setEntryOpen(false);},[routes,nav,entryOpen]);
+  function startNavigation(){
+    if(!route)return;
+    setEntryOpen(false);
+    if(!tracking){startRequested.current=true;locate();return;}
+    setFollow(true);setNav('active');
+  }
+  function endNavigation(){
+    startRequested.current=false;setNav('idle');setFollow(false);setProgress(0);setStep(0);setRemaining(route?.distance??0);window.speechSynthesis?.cancel();
+  }
+  function enterManualOrigin(){
+    setEntryOpen(false);setSearchFor('origin');setPage('rotas');
+    requestAnimationFrame(()=>document.getElementById('query')?.focus());
+  }
+  function retryEntry(){
+    setEntryError('');
+    if(origin&&destination){void calculate(origin).then(ok=>{if(ok){setFollow(false);setStatus('');}else setEntryError('Não foi possível traçar a rota agora. Tente novamente ou escolha outra unidade.');});return;}
+    if(!hospitals.length)void loadHospitals();
+    locate();
   }
   useEffect(()=>{
     if(nav!=='active'||!origin||!route||!tracking){window.speechSynthesis?.cancel();return;}
@@ -246,21 +317,32 @@ export default function App(){
     catch(e){if((e as Error).name!=='AbortError'&&assistantController.current===controller)setAssistantReply((e as Error).message);}finally{if(assistantController.current===controller)setAssistantBusy(false);}
   }
   const pedestrian=mode==='walk'||mode==='wheelchair';
+  const navNext=route?Math.min(step+1,route.steps.length-1):0;
+  const navStep=route?.steps[navNext];
+  const navMeters=route?(navNext>step?Math.max(0,((stepProgress[navNext]??1)-progress)*route.distance):remaining):0;
+  const navArrival=route?new Date(Date.now()+route.duration*(1-progress)*1000).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):'';
+  const hospitalsFailed=!hospitalsLoading&&hospitals.length===0;
+  const entryMessage=entryError||gpsError||locationIssue||(origin&&hospitalsFailed?'Não foi possível carregar as unidades de saúde. Confira a conexão e tente novamente.':'');
+  const entrySteps=[
+    {label:'Encontrar sua localização',state:origin?'done':'active'},
+    {label:'Achar a unidade mais próxima',state:origin&&destination?'done':origin?'active':'pending'},
+    {label:'Traçar a rota',state:routes.length?'done':busy?'active':'pending'}
+  ];
+  const autoChosen=!!(destination&&autoDestination.current&&samePlace(destination,autoDestination.current));
   const currentPage=pages.find(p=>p.id===page)!;
   const showMap=['inicio','mapa','rotas','onibus'].includes(page);
   const showPlanner=['inicio','mapa','rotas','hospitais'].includes(page);
-  return <div className="app original-shell"><aside className="sidebar">
-    <a className="brand original-logo" href="/" aria-label="Maceió Inteligente — início"><img src="/branding/logo.png" alt="Maceió Inteligente — Rotas de Emergência" width="1536" height="1024" decoding="async"/></a>
+  return <div className={'app original-shell rebrand'+(nav==='active'&&showMap?' nav-fullscreen':'')}><aside className="sidebar">
+    <a className="brand original-logo" href="/" aria-label="Maceió Inteligente — início"><img src="/brand/simbolo.svg" alt="" width="48" height="48" decoding="async"/><span className="brand-wordmark"><strong>Maceió</strong><small>Inteligente</small></span></a>
     <div className="tagline">Seu caminho até o hospital, com orientação.</div><div className="nav-label">Menu principal</div>
-    <nav className="nav" aria-label="Menu principal">{pages.map(p=><button key={p.id} className={page===p.id?'active':''} aria-current={page===p.id?'page':undefined} onClick={()=>{setPage(p.id);setStatus('');window.scrollTo({top:0,behavior:'smooth'});}}><span className="nav-icon" aria-hidden="true">{p.icon}</span>{p.label}</button>)}</nav>
+    <nav className="nav" aria-label="Menu principal">{pages.map(p=><button key={p.id} data-page={p.id} className={page===p.id?'active':''} aria-current={page===p.id?'page':undefined} onClick={()=>{setPage(p.id);setStatus('');window.scrollTo({top:0,behavior:'smooth'});}}><span className="nav-icon" aria-hidden="true">{p.icon}</span>{p.label}</button>)}</nav>
     <div className="sidebar-bottom">Maceió · Alagoas<br/>Hospitais, UPAs e caminhos para o cuidado.</div>
   </aside><div className="main original-main">
-    <header className="topbar"><form className="searchbox" onSubmit={e=>{e.preventDefault();const matches=hospitals.filter(h=>h.name.toLocaleLowerCase('pt-BR').includes(globalQuery.toLocaleLowerCase('pt-BR')));if(matches.length===1)chooseHospital(matches[0]);else{setPage('hospitais');setStatus(matches.length?`${matches.length} hospitais correspondem à pesquisa. Use o filtro da lista.`:'Hospital não encontrado. Consulte a lista ou pesquise um endereço.');}}}><span aria-hidden="true">⌕</span><input aria-label="Buscar hospital" value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="Buscar hospital..."/><button type="submit" className="search-submit">Buscar</button></form><div className="top-actions"><button className="circle-btn" title="Ocorrências" aria-label="Abrir ocorrências" onClick={()=>setPage('ocorrencias')}>⚑</button><button className="circle-btn" title="Ajuda" aria-label="Como traçar uma rota" onClick={()=>setStatus('Escolha um hospital, ative o GPS ou informe a origem, calcule a rota e pressione Iniciar navegação.')}>?</button><span className={'connection-pill '+(!online?'offline':'')}>{online?'Conectado':'Sem conexão'}</span></div></header>
-    <div className="content original-content"><div className="page-heading"><div><div className="eyebrow">{page==='inicio'?'Painel principal':'Maceió Inteligente'}</div><h1>{currentPage.title}</h1><p>{currentPage.description}</p></div><div className="button-row">{!showMap&&<button className="button secondary" onClick={()=>setPage('mapa')}>Abrir mapa</button>}<button className="button secondary" id="clear-planning" onClick={clearPlanning}>Limpar planejamento</button></div></div>
-    {origin&&page==='inicio'&&<NearbyPanel origin={origin} hospitals={hospitals} stops={nearby.stops} loading={nearby.loading} error={nearby.error} onHospital={chooseHospital} onStop={stop=>{setPage('onibus');setFocusedStop(stop);setFollow(false);setStatus('Ponto próximo à sua origem: '+stop.name);}} onHospitals={()=>setPage('hospitais')} onBuses={()=>setPage('onibus')}/>}
+    <header className="topbar"><form className="searchbox" onSubmit={e=>{e.preventDefault();const matches=hospitals.filter(h=>h.name.toLocaleLowerCase('pt-BR').includes(globalQuery.toLocaleLowerCase('pt-BR')));if(matches.length===1)chooseHospital(matches[0]);else{setPage('hospitais');setStatus(matches.length?`${matches.length} hospitais correspondem à pesquisa. Use o filtro da lista.`:'Hospital não encontrado. Consulte a lista ou pesquise um endereço.');}}}><span aria-hidden="true">⌕</span><input aria-label="Buscar hospital" value={globalQuery} onChange={e=>setGlobalQuery(e.target.value)} placeholder="Buscar hospital..."/><button type="submit" className="search-submit">Buscar</button></form><div className="top-actions"><button className="circle-btn" title="Ocorrências" aria-label="Abrir ocorrências" onClick={()=>setPage('ocorrencias')}>⚑</button><button className="circle-btn" title="Ajuda" aria-label="Como traçar uma rota" onClick={()=>setStatus('Escolha um hospital, ative o GPS ou informe a origem, calcule a rota e pressione Iniciar navegação.')}>?</button><a className="samu-link" href="tel:192" aria-label="Ligar para o SAMU, 192">SAMU 192</a><span className={'connection-pill '+(!online?'offline':'')}>{online?'Conectado':'Sem conexão'}</span></div></header>
+    <div className={'content original-content content-'+page}><div className="page-heading"><div><div className="eyebrow">{page==='inicio'?'Painel principal':'Maceió Inteligente'}</div><h1>{currentPage.title}</h1><p>{currentPage.description}</p></div><div className="button-row">{!showMap&&<button className="button secondary" onClick={()=>setPage('mapa')}>Abrir mapa</button>}<button className="button secondary" id="clear-planning" onClick={clearPlanning}>Limpar planejamento</button></div></div>
     <div className={'hospital-workspace page-'+page}>
     <div className="planner-column" hidden={!showPlanner}>
-    <section className="card red origin-card" hidden={page==='hospitais'}>
+    <section className="card red origin-card" hidden={page==='hospitais'||(page==='inicio'&&!!origin)}>
     <p className="eyebrow">SEU CAMINHO ATÉ O CUIDADO</p><h1>Encontre um hospital.<br/>{' '}Siga com orientação.</h1>
     <p className="muted">Escolha um hospital em Maceió e compare os trajetos a partir de onde você está.</p>
     <button className="primary w-full" onClick={locate} disabled={tracking}>◎ Usar minha localização</button>{tracking&&<button onClick={stopGps}>Interromper GPS</button>}
@@ -269,7 +351,7 @@ export default function App(){
     {gpsDenied&&<div className="gps-help">Para reativar o GPS, abra as permissões pelo ícone ao lado do endereço do navegador e permita “Localização”. A origem manual continua disponível.</div>}
     {locationIssue&&<div className="gps-help location-issue" role="status">{locationIssue}</div>}
     </section>
-    <div className="card" hidden={page==='mapa'||page==='rotas'}><Hospitals hospitals={hospitals} origin={origin} destination={destination} favorites={favorites} onSelect={chooseHospital} onFavorite={toggleFavorite} loading={hospitalsLoading} onReload={()=>void loadHospitals()}/></div>
+    <div className="card" hidden={page==='mapa'||page==='rotas'||(page==='inicio'&&!!origin)}><Hospitals hospitals={hospitals} origin={origin} destination={destination} favorites={favorites} onSelect={chooseHospital} onFavorite={toggleFavorite} loading={hospitalsLoading} onReload={()=>void loadHospitals()}/></div>
     <section ref={routePanel} className="route-planner card" hidden={page==='hospitais'} aria-labelledby="route-title"><h2 id="route-title">Seu trajeto até o hospital</h2>
       <div className="endpoints"><p><i className={origin?'dot blue':'dot'}/>{origin?originName||'Origem definida em Maceió':'Informe uma origem em Maceió ou ative o GPS'}</p><p><i className="dot red"/>{destination?.name||'Escolha um hospital na lista'}</p></div>
       <form onSubmit={search}><label htmlFor="searchFor">Pesquisar endereço para</label><select id="searchFor" value={searchFor} onChange={e=>{searchController.current?.abort();setSearchBusy(false);setResults([]);setSearchFor(e.target.value as typeof searchFor);}}><option value="origin">Origem manual</option><option value="waypoint">Parada intermediária</option><option value="destination">Outro destino</option></select>
@@ -290,8 +372,8 @@ export default function App(){
         <strong>{displayRoute.steps[step]?.instruction}</strong><p>{displayRoute.steps[step]?.street}</p>
         <div className="metrics"><span>{(remaining/1000).toFixed(1)} km {preview?'no percurso':'restantes'}</span><span>{preview?`${Math.round(displayRoute.duration/60)} min estimados na consulta`:'Chegada estimada '+new Date(Date.now()+displayRoute.duration*(1-progress)*1000).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div>
         {!preview&&<><progress value={progress} max={1}/><label><input type="checkbox" checked={voice} onChange={e=>{setVoice(e.target.checked);if(!e.target.checked)window.speechSynthesis?.cancel();}} disabled={!('speechSynthesis' in window)}/> Instruções por voz</label>
-          <button className="primary" disabled={!route||busy} onClick={()=>{if(!route)return;if(nav==='active'){setNav('paused');return;}if(!tracking){startRequested.current=true;locate();return;}setFollow(true);setNav('active');}}>{nav==='active'?'Pausar':'Iniciar navegação'}</button>{' '}
-          <button onClick={()=>{startRequested.current=false;setNav('idle');setProgress(0);setStep(0);setRemaining(route?.distance??0);window.speechSynthesis?.cancel();}}>Encerrar</button>{' '}<button onClick={()=>void calculate()} disabled={busy||!online}>Recalcular</button>
+          <button className="primary" disabled={!route||busy} onClick={()=>{if(!route)return;if(nav==='active'){setNav('paused');return;}startNavigation();}}>{nav==='active'?'Pausar':'Iniciar navegação'}</button>{' '}
+          <button onClick={endNavigation}>Encerrar</button>{' '}<button onClick={()=>void calculate()} disabled={busy||!online}>Recalcular</button>
         </>}
         <details><summary>Instruções completas</summary><ol>{displayRoute.steps.map((s,i)=><li key={i}>{s.instruction} · {Math.round(s.distance)} m</li>)}</ol></details>
       </section>}
@@ -301,10 +383,21 @@ export default function App(){
     <div className="card-head"><div><span className="eyebrow">{page==='onibus'?'TRANSPORTE PÚBLICO':'MAPA E PERCURSO'}</span><h2>{page==='onibus'?busRoute?.name||'Linhas e pontos de Maceió':displayDestination?.name||'Hospitais e UPAs de Maceió'}</h2></div>{page==='onibus'?<button id="clear-bus" disabled={!busRoute&&!focusedStop} onClick={clearBusView}>Limpar itinerário</button>:<span className="badge">{route?`${Math.round(route.duration/60)} min`:'Selecione uma unidade'}</span>}</div>
     <div className="map-surface"><div className="map" ref={container} aria-label="Mapa de hospitais e trajetos de Maceió"/>
     <div className="map-label">✚ HOSPITAIS <span>Toque em uma cruz para selecionar</span></div>
-    <div className="map-tools"><Compass map={map.current}/><button onClick={()=>{if(origin){setFollow(true);map.current?.easeTo({center:[origin.lon,origin.lat],zoom:17});}}} disabled={!origin}>◎ Centralizar</button></div></div>
+    <div className="map-tools"><Compass map={map.current}/><button onClick={()=>{if(origin){setFollow(true);map.current?.easeTo({center:[origin.lon,origin.lat],zoom:17});}}} disabled={!origin}>◎ Centralizar</button></div>
+    {route&&destination&&!preview&&nav!=='active'&&page!=='onibus'&&<section className="ready-card" aria-label="Rota pronta">
+      <div className="ready-head"><span className="ready-label"><i aria-hidden="true"/>{autoChosen?'Rota pronta · mais próxima':'Rota pronta'}</span><button type="button" className="ready-change" onClick={()=>{setPage('rotas');requestAnimationFrame(()=>routePanel.current?.scrollIntoView({behavior:'smooth',block:'start'}));}}>Trocar</button></div>
+      <div className="ready-body"><span className="ready-icon" aria-hidden="true">✚</span><div className="ready-name"><strong>{destination.name}</strong><small>{facilityLabel(destination)}</small></div><div className="ready-eta"><b>{Math.max(1,Math.round(route.duration/60))} min</b><small>{formatMeters(route.distance)}</small></div></div>
+      <div className="ready-actions"><button type="button" className="ready-start" disabled={busy} onClick={startNavigation}><span aria-hidden="true">➤</span> Iniciar navegação</button><a className="samu-link" href="tel:192" aria-label="Ligar para o SAMU, 192">SAMU 192</a></div>
+    </section>}
+    {nav==='active'&&route&&<>
+      <section className="nav-banner" aria-label="Próxima manobra"><div className="nav-banner-main"><ManeuverIcon instruction={navStep?.instruction}/><div><b>{formatMeters(navMeters)}</b><span>{navStep?.instruction??'Siga o trajeto'}</span></div></div>{navStep?.street&&<div className="nav-banner-street">{navStep.street}</div>}</section>
+      <section className="nav-bottom" aria-label="Resumo da viagem"><div className="nav-progress" aria-hidden="true"><span style={{width:Math.round(progress*100)+'%'}}/></div><div className="nav-bottom-row"><div className="nav-eta"><b>{navArrival}</b><small>{Math.max(1,Math.ceil(route.duration*(1-progress)/60))} min · {formatMeters(remaining)} · {destination?.name}</small></div><button type="button" className="nav-voice" aria-pressed={voice} disabled={!('speechSynthesis' in window)} onClick={()=>{const next=!voice;setVoice(next);if(!next)window.speechSynthesis?.cancel();}}>{voice?'Voz ligada':'Voz'}</button><button type="button" className="nav-end" onClick={endNavigation}>Encerrar</button></div></section>
+    </>}
+    </div>
     <div className="map-legend"><span><span className={'legend-line '+(page==='onibus'?'bus':'')}/>{page==='onibus'?'Itinerário de ônibus':'Trajeto selecionado'}</span><span><span className="legend-dot"/>Hospital / UPA</span></div><p className="hint">{page==='onibus'?'Percursos OSM: geometria disponível não equivale a horário ou ponto de embarque confirmado.':eventsLive?'Ocorrências conectadas':'Atualizações de ocorrências por consulta'}</p>
     {displayRoute&&page!=='onibus'&&<div className="route-metrics"><div className="metric"><small>Distância do trajeto</small><strong>{(displayRoute.distance/1000).toFixed(1)} km</strong></div><div className="metric"><small>Tempo estimado</small><strong>{Math.max(1,Math.round(displayRoute.duration/60))} min</strong></div></div>}
     </section></div>
+    {origin&&page==='inicio'&&<NearbyPanel origin={origin} hospitals={hospitals} stops={nearby.stops} loading={nearby.loading} error={nearby.error} onHospital={chooseHospital} onStop={stop=>{setPage('onibus');setFocusedStop(stop);setFollow(false);setStatus('Ponto próximo à sua origem: '+stop.name);}} onHospitals={()=>setPage('hospitais')} onBuses={()=>setPage('onibus')}/>}
     <section className="card support-area" hidden={page!=='favoritos'}>
     <details open><summary>Meus locais favoritos ({favorites.length})</summary><p className="hint">Salvos somente neste navegador. Nenhuma posição é adicionada automaticamente.</p>{favorites.map((p,i)=><div className="favorite" key={i}><button onClick={()=>chooseHospital(p)}>{p.name}</button><button aria-label={'Remover favorito '+p.name} onClick={()=>toggleFavorite(p)}>×</button></div>)}</details>
     <OfflinePanel route={displayRoute} destination={displayDestination} warnings={preview?.warnings??warnings} onPreview={saved=>{setNav('idle');setPreview(saved);setPage('rotas');window.speechSynthesis?.cancel();}} onMessage={setStatus}/>
@@ -320,5 +413,21 @@ export default function App(){
     <div hidden={page!=='hash'}><RoadTable roads={roads}/></div><div hidden={page!=='grafo'}><EducationalGraph stops={waypoints.length}/></div>
     {status&&<div className="app-status" role="status" aria-live="polite"><span>{status}</span><button onClick={()=>setStatus('')} aria-label="Dispensar mensagem">×</button></div>}
     <p className="footer-note">Maceió Inteligente · Rotas para unidades de saúde · © OpenStreetMap contributors <button className="text-button" onClick={()=>setPage('config')}>Fontes e privacidade</button></p>
-    </div></div></div>;
+    </div></div>
+    <nav className="mobile-tabbar" aria-label="Atalhos principais">{mobileTabs.map(t=><button key={t.id} type="button" className={page===t.id?'active':''} aria-current={page===t.id?'page':undefined} onClick={()=>{setPage(t.id);setStatus('');window.scrollTo({top:0,behavior:'smooth'});}}><span aria-hidden="true">{t.icon}</span>{t.label}</button>)}</nav>
+    {entryOpen&&<div className="entry-overlay" role="dialog" aria-modal="true" aria-labelledby="entry-title" onKeyDown={e=>{if(e.key==='Escape')setEntryOpen(false);}}><div className="entry-card">
+      <div className="entry-brand"><img src="/brand/simbolo.svg" alt="" width="56" height="56"/><span className="brand-wordmark"><strong>Maceió</strong><small>Inteligente</small></span></div>
+      {!entryMessage&&<div className="entry-radar" aria-hidden="true"><span/></div>}
+      <h2 id="entry-title">{entryMessage?(origin?'Não conseguimos traçar a rota':'Não conseguimos sua localização'):!origin?'Localizando você…':'Traçando a rota…'}</h2>
+      <p>{entryMessage||(!origin?'Permita o acesso à localização quando o navegador pedir. Em seguida traçamos a rota até a unidade de saúde mais próxima.':destination?destination.name:'Procurando a unidade de saúde mais próxima…')}</p>
+      {!entryMessage&&<ol className="entry-steps">{entrySteps.map(s=><li key={s.label} className={s.state}><span aria-hidden="true">{s.state==='done'?'✓':''}</span>{s.label}</li>)}</ol>}
+      <div className="entry-actions">
+        {entryMessage&&<button type="button" className="primary" onClick={enterManualOrigin}>Digitar onde estou</button>}
+        {entryMessage&&<button type="button" onClick={retryEntry}>Tentar novamente</button>}
+        {!entryMessage&&!origin&&<button type="button" className="text-button" onClick={enterManualOrigin}>Prefiro digitar o endereço</button>}
+        <button type="button" className="text-button" onClick={()=>setEntryOpen(false)}>Ver o mapa</button>
+      </div>
+      <div className="entry-footer"><p>Usamos sua posição só para calcular a rota; origem e destino são enviados ao serviço de rotas.</p><a className="samu-link" href="tel:192" aria-label="Ligar para o SAMU, 192">SAMU 192</a></div>
+    </div></div>}
+    </div>;
 }

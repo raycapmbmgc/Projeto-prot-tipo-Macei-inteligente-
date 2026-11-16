@@ -5,6 +5,7 @@ import './fonts.css';
 import './style.css';
 import './original.css';
 import './layout.css';
+import './rebrand.css';
 
 createRoot(document.getElementById('root')!).render(<App/>);
 if('serviceWorker' in navigator && !import.meta.env.DEV) navigator.serviceWorker.register('/sw.js').catch(()=>{});
