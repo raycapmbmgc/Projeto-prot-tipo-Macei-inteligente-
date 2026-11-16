@@ -164,7 +164,13 @@ export default function App(){
     locate();
     return()=>{disposed=true;clearTimeout(timer);clearInterval(polling);ws?.close();window.removeEventListener('online',connected);window.removeEventListener('offline',disconnected);routeController.current?.abort();searchController.current?.abort();if(watch.current!==null)navigator.geolocation.clearWatch(watch.current);window.speechSynthesis?.cancel();m?.remove();};
   },[]);
-  useEffect(()=>{const frame=requestAnimationFrame(()=>map.current?.resize());return()=>cancelAnimationFrame(frame);},[page,nav]);
+  function fitRoute(r:Route){
+    if(!map.current)return;
+    const bounds=new maplibregl.LngLatBounds();r.geometry.coordinates.forEach(c=>bounds.extend([c[0],c[1]]));
+    const box=map.current.getContainer().getBoundingClientRect();const roomy=box.height>=380&&box.width>=260;
+    map.current.fitBounds(bounds,{padding:roomy?{top:56,right:56,left:56,bottom:Math.min(230,Math.round(box.height*.5))}:30,maxZoom:17});
+  }
+  useEffect(()=>{const frame=requestAnimationFrame(()=>{map.current?.resize();if(ready&&displayRoute&&nav!=='active'&&page!=='onibus')fitRoute(displayRoute);});return()=>cancelAnimationFrame(frame);},[page,nav]);
   useEffect(()=>{
     if(!caps.live_traffic)return;
     let disposed=false;
@@ -228,7 +234,7 @@ export default function App(){
     if(!ready||!map.current)return;
     const source=map.current.getSource('route') as maplibregl.GeoJSONSource;
     source?.setData(displayRoute?{type:'Feature',properties:{},geometry:displayRoute.geometry}:{type:'FeatureCollection',features:[]});
-    if(displayRoute){const bounds=new maplibregl.LngLatBounds();displayRoute.geometry.coordinates.forEach(c=>bounds.extend([c[0],c[1]]));const box=map.current.getContainer().getBoundingClientRect();const roomy=box.height>=380&&box.width>=260;map.current.fitBounds(bounds,{padding:roomy?{top:56,right:56,left:56,bottom:Math.min(230,Math.round(box.height*.5))}:30,maxZoom:17});setRemaining(displayRoute.distance);setProgress(0);setStep(0);spoken.current='';}
+    if(displayRoute){fitRoute(displayRoute);setRemaining(displayRoute.distance);setProgress(0);setStep(0);spoken.current='';}
   },[displayRoute,ready]);
   // Reset instructions even if WebGL is unavailable.
   useEffect(()=>{setStep(0);setProgress(0);setRemaining(displayRoute?.distance??0);spoken.current='';},[displayRoute]);
@@ -390,7 +396,7 @@ export default function App(){
     {route&&destination&&!preview&&nav!=='active'&&page!=='onibus'&&<section className="ready-card" aria-label="Rota pronta">
       <div className="ready-head"><span className="ready-label"><i aria-hidden="true"/>{autoChosen?'Urgência mais próxima':'Rota pronta'}</span><button type="button" className="ready-change" onClick={()=>{setPage('rotas');requestAnimationFrame(()=>routePanel.current?.scrollIntoView({behavior:'smooth',block:'start'}));}}>Trocar</button></div>
       <div className="ready-body"><span className="ready-icon" aria-hidden="true">✚</span><div className="ready-name"><strong>{destination.name}</strong><small>{facilityLabel(destination)}</small></div><div className="ready-eta"><b>{Math.max(1,Math.round(route.duration/60))} min</b><small>{formatMeters(route.distance)}</small></div></div>
-      <div className="ready-actions"><button type="button" className="ready-start" disabled={busy} onClick={startNavigation}><span aria-hidden="true">➤</span> Iniciar navegação</button><a className="samu-link" href="tel:192" aria-label="Ligar para o SAMU, 192">SAMU 192</a></div>
+      <div className="ready-actions"><button type="button" className="ready-start" disabled={busy} onClick={startNavigation}><span aria-hidden="true">➤</span> Iniciar navegação</button><a className="samu-link" href="tel:192" aria-label="Ligar para o SAMU, 192">192</a></div>
     </section>}
     {nav==='active'&&route&&<>
       <section className="nav-banner" aria-label="Próxima manobra"><div className="nav-banner-main"><ManeuverIcon instruction={navStep?.instruction}/><div><b>{formatMeters(navMeters)}</b><span>{navStep?.instruction??'Siga o trajeto'}</span></div></div>{navStep?.street&&<div className="nav-banner-street">{navStep.street}</div>}</section>
