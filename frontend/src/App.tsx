@@ -118,12 +118,12 @@ export default function App(){
     const epoch=++gpsEpoch.current;
     watch.current=navigator.geolocation.watchPosition(p=>{
       if(epoch!==gpsEpoch.current)return;
-      if(p.timestamp-lastFix.current<3000)return;lastFix.current=p.timestamp;
+      if(p.timestamp-lastFix.current<3000)return;const firstFix=lastFix.current===0;lastFix.current=p.timestamp;
       const point={lat:p.coords.latitude,lon:p.coords.longitude};
       if(!isInMaceio(point)){stopGps();invalidate();setOrigin(null);setOriginName('');setAccuracy(null);const message='A posição recebida está fora de Maceió. Informe uma origem manual em Maceió ou confira a localização do dispositivo.';setLocationIssue(message);setStatus(message);map.current?.easeTo({center:MACEIO_CENTER,zoom:13});return;}
       setOrigin(point);setOriginName('Minha localização em Maceió');setAccuracy(p.coords.accuracy);setTracking(true);
       if(startRequested.current){startRequested.current=false;setNav('active');}
-      setStatus('GPS atualizado. Confira a precisão antes de seguir.');
+      if(firstFix)setStatus('GPS atualizado. Confira a precisão antes de seguir.');
     },e=>{if(epoch!==gpsEpoch.current)return;stopGps();setGpsDenied(e.code===1);const message=e.code===1?'O navegador bloqueou a localização. Você pode informar sua origem manualmente.':'Sem sinal de localização. Tente novamente ou informe sua origem.';setGpsError(message);setStatus(message);},{enableHighAccuracy:true,maximumAge:0,timeout:15000});
   }
   async function loadHospitals(){
@@ -228,7 +228,7 @@ export default function App(){
     if(!ready||!map.current)return;
     const source=map.current.getSource('route') as maplibregl.GeoJSONSource;
     source?.setData(displayRoute?{type:'Feature',properties:{},geometry:displayRoute.geometry}:{type:'FeatureCollection',features:[]});
-    if(displayRoute){const bounds=new maplibregl.LngLatBounds();displayRoute.geometry.coordinates.forEach(c=>bounds.extend([c[0],c[1]]));map.current.fitBounds(bounds,{padding:55});setRemaining(displayRoute.distance);setProgress(0);setStep(0);spoken.current='';}
+    if(displayRoute){const bounds=new maplibregl.LngLatBounds();displayRoute.geometry.coordinates.forEach(c=>bounds.extend([c[0],c[1]]));const box=map.current.getContainer().getBoundingClientRect();const roomy=box.height>=380&&box.width>=260;map.current.fitBounds(bounds,{padding:roomy?{top:56,right:56,left:56,bottom:Math.min(230,Math.round(box.height*.5))}:30,maxZoom:17});setRemaining(displayRoute.distance);setProgress(0);setStep(0);spoken.current='';}
   },[displayRoute,ready]);
   // Reset instructions even if WebGL is unavailable.
   useEffect(()=>{setStep(0);setProgress(0);setRemaining(displayRoute?.distance??0);spoken.current='';},[displayRoute]);
